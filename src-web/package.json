@@ -1,0 +1,52 @@
+{
+  "name": "@notes/app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 1420",
+    "start": "vite --port 1420",
+    "build": "vite build && tsc",
+    "serve": "vite preview",
+    "test": "vitest run",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.1.11",
+    "@tanstack/react-query": "^5.81.5",
+    "@tanstack/react-router": "^1.121.2",
+    "@tanstack/react-router-devtools": "^1.121.2",
+    "@tanstack/router-plugin": "^1.121.2",
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-opener": "^2",
+    "@tiptap/extension-character-count": "^3.0.7",
+    "@tiptap/extension-list": "^3.0.7",
+    "@tiptap/extensions": "^3.0.7",
+    "@tiptap/pm": "^3.0.7",
+    "@tiptap/react": "^3.0.7",
+    "@tiptap/starter-kit": "^3.0.7",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "isbot": "^5.1.28",
+    "lucide-react": "^0.525.0",
+    "radix-ui": "^1.4.2",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-textarea-autosize": "^8.5.9",
+    "sonner": "^2.0.6",
+    "tailwind-merge": "^3.3.1",
+    "tailwindcss": "^4.1.11"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/react": "^16.2.0",
+    "@types/node": "^24.0.15",
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "@vitejs/plugin-react": "^4.3.4",
+    "jsdom": "^26.0.0",
+    "typescript": "^5.7.2",
+    "vite": "^6.1.0",
+    "vitest": "^3.0.5",
+    "web-vitals": "^4.2.4"
+  }
+}
