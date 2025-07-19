@@ -14,9 +14,7 @@ export const Route = createFileRoute('/')({
 });
 
 const content = `
-<h1>Welcome to Notes</h1>
-
-<p>Notes is a <a href="https://arikk.dev">note-taking app</a> that allows you to take notes with a focus on simplicity and ease of use.</p>
+<h1>Welcome to Raycast Notes</h1><p class="editor-paragraph">Thank you for checking out Raycast Notes, a handy small scratchpad for your new ideas, meeting notes, and things you want to jot down quickly.</p><hr><h2>📑 Browsing Notes</h2><p class="editor-paragraph">You can find your notes with <code>⌘</code> <code>P</code> or via the panel button in the title bar. You can have up to 5 notes on the free plan, and an unlimited amount with <a href="https://www.raycast.com/pro" target="_blank" rel="noopener noreferrer nofollow" id="fa84690f-4465-4b6a-8884-47cd30c464f8">Raycast Pro</a>.</p><h2>📏 Window Resizing</h2><p class="editor-paragraph">Raycast Notes’ height is dynamic by default. You can override this by simply re-sizing it manually.</p><p class="editor-paragraph">To get back to auto-sizing, you can hover around the bottom edge, where you will see an “auto-size” button appear.</p><h2>⚡ Actions</h2><p class="editor-paragraph">You can find some helpful actions from the <code>⌘</code> <code>K</code> menu or the <code>⌘</code> icon in the title bar.</p><h2>🎨 Formatting <code>arik</code> arik</h2><p class="editor-paragraph">You can use markdown to format your text, using <code>#</code> for headings, <code>**bold**</code>, <code>[]</code> for task items and so on. Check out the full list <a href="https://www.raycast.com/help/notes" target="_blank" rel="noopener noreferrer nofollow" id="ab25bd2a-7e57-4972-bb30-9d44eb8e1ac4">here</a>.</p><hr><p class="editor-paragraph">We hope you enjoy using Raycast Notes. Please feel free to leave us feedback in our <a href="http://raycast.com/community" target="_blank" rel="noopener noreferrer nofollow" id="09cfb928-1a41-459c-baa0-fa3ce6a28e61">Slack Community</a> ❤️</p>
 `;
 
 function IndexPage() {

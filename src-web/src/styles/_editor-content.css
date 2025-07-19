@@ -113,4 +113,12 @@
   hr {
     @apply my-4 border-zinc-300;
   }
+
+  blockquote {
+    @apply border-l-2 border-red-500 pl-4 mb-2 mt-2.5 py-1 ml-1.5;
+
+    p {
+      @apply mb-0;
+    }
+  }
 }

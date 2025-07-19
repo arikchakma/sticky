@@ -14,6 +14,7 @@ import {
   UnderlineIcon,
 } from 'lucide-react';
 import { Button } from '../ui/button';
+import { LinkSelectorPopover } from './link-selector-popover';
 
 type MenuBarItemsProps = {
   editor: Editor;
@@ -33,7 +34,10 @@ export function MenuBarItems(props: MenuBarItemsProps) {
       isOrderedList: ctx.editor.isActive('orderedList'),
       isTaskList: ctx.editor.isActive('taskList'),
       isCode: ctx.editor.isActive('code'),
+
       isLink: ctx.editor.isActive('link'),
+      linkHref: ctx.editor.getAttributes('link').href,
+
       isCodeBlock: ctx.editor.isActive('codeBlock'),
       isQuote: ctx.editor.isActive('blockquote'),
       isHeading1: ctx.editor.isActive('heading', { level: 1 }),
@@ -42,72 +46,84 @@ export function MenuBarItems(props: MenuBarItemsProps) {
 
   const items = [
     {
+      type: 'heading',
       icon: Heading1Icon,
       title: 'Heading 1',
       action: () => editor.chain().focus().toggleHeading({ level: 1 }).run(),
       isActive: stats.isHeading1,
     },
     {
+      type: 'bold',
       icon: BoldIcon,
       title: 'Bold',
       action: () => editor.chain().focus().toggleBold().run(),
       isActive: stats.isBold,
     },
     {
+      type: 'italic',
       icon: ItalicIcon,
       title: 'Italic',
       action: () => editor.chain().focus().toggleItalic().run(),
       isActive: stats.isItalic,
     },
     {
+      type: 'strike',
       icon: StrikethroughIcon,
       title: 'Strike',
       action: () => editor.chain().focus().toggleStrike().run(),
       isActive: stats.isStrike,
     },
     {
+      type: 'underline',
       icon: UnderlineIcon,
       title: 'Underline',
       action: () => editor.chain().focus().toggleUnderline().run(),
       isActive: stats.isUnderline,
     },
     {
+      type: 'code',
       icon: CodeIcon,
       title: 'Code',
       action: () => editor.chain().focus().toggleCode().run(),
       isActive: stats.isCode,
     },
     {
+      type: 'link',
       icon: LinkIcon,
       title: 'Link',
       action: () => editor.chain().focus().toggleLink().run(),
       isActive: stats.isLink,
     },
     {
+      type: 'codeBlock',
       icon: FileCode2Icon,
       title: 'Code Block',
       action: () => editor.chain().focus().toggleCodeBlock().run(),
       isActive: stats.isCodeBlock,
     },
     {
+      type: 'blockquote',
       icon: TextQuoteIcon,
       title: 'Blockquote',
       action: () => editor.chain().focus().toggleBlockquote().run(),
       isActive: stats.isQuote,
     },
     {
+      type: 'bulletList',
       icon: ListIcon,
       title: 'Bullet List',
       action: () => editor.chain().focus().toggleBulletList().run(),
       isActive: stats.isBulletList,
     },
     {
+      type: 'orderedList',
       icon: ListOrderedIcon,
       title: 'Ordered List',
       action: () => editor.chain().focus().toggleOrderedList().run(),
       isActive: stats.isOrderedList,
     },
     {
+      type: 'taskList',
       icon: ListTodoIcon,
       title: 'Task List',
       action: () => editor.chain().focus().toggleTaskList().run(),
@@ -118,6 +134,20 @@ export function MenuBarItems(props: MenuBarItemsProps) {
   return (
     <div className="flex items-center gap-0.5">
       {items.map((item) => {
+        if (item.type === 'link') {
+          return (
+            <LinkSelectorPopover
+              key={item.title}
+              defaultValue={stats?.linkHref ?? ''}
+              isActive={item.isActive}
+              onSelect={(url) => {
+                editor.chain().focus().toggleLink({ href: url }).run();
+              }}
+              onRemove={() => editor.chain().focus().unsetLink().run()}
+            />
+          );
+        }
+
         return (
           <Button
             variant="ghost"
