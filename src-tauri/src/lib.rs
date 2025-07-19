@@ -1,14 +1,199 @@
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+use flexi_logger::LogSpecification;
+use flexi_logger::{Age, Cleanup, Criterion, FileSpec, Logger, Naming};
+use log::{error, warn};
+use tauri::{App, LogicalSize, Manager, RunEvent, Size, WebviewWindow, WindowEvent};
+use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
+
+#[cfg(target_os = "macos")]
+mod mac_window;
+mod window;
+#[cfg(target_os = "macos")]
+mod window_menu;
+
+#[macro_use]
+mod macros;
+
+use window::MAIN_WINDOW_PREFIX;
+
+#[derive(Default)]
+pub struct AppState {}
+
 #[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
+async fn restore_window_to_default_dimensions(window: WebviewWindow) -> Result<(), String> {
+    window
+        .set_size(Size::Logical(LogicalSize {
+            width: window::DEFAULT_WINDOW_WIDTH,
+            height: window::DEFAULT_WINDOW_HEIGHT,
+        }))
+        .map_err(|e| format!("Failed to restore window size: {}", e))?;
+
+    window
+        .center()
+        .map_err(|e| format!("Failed to center window: {}", e))?;
+
+    Ok(())
+}
+
+// Custom colored format for logging
+use flexi_logger::DeferredNow;
+use log::{Level, Record};
+use std::io::{Result as IoResult, Write};
+
+pub fn custom_colored_format(
+    w: &mut dyn Write,
+    now: &mut DeferredNow,
+    record: &Record,
+) -> IoResult<()> {
+    let (level_color, level_str, msg_color, msg_fg_highlight) = match record.level() {
+        Level::Error => ("\x1b[38;5;196m", "ERROR", "\x1b[38;5;196m", true),
+        Level::Warn => ("\x1b[38;5;226m", "WARN ", "\x1b[38;5;226m", true),
+        Level::Info => ("\x1b[38;5;51m", "INFO ", "\x1b[38;5;15m", false),
+        Level::Debug => ("\x1b[38;5;27m", "DEBUG", "\x1b[38;5;15m", false),
+        Level::Trace => ("\x1b[38;5;201m", "TRACE", "\x1b[38;5;15m", false),
+    };
+
+    let timestamp_color = "\x1b[38;5;15m";
+    let module_color = "\x1b[38;5;250m";
+    let reset = "\x1b[0m";
+
+    let timestamp = now.format("%Y-%m-%d %H:%M:%S");
+    let module = record.module_path().unwrap_or("<unknown>");
+
+    if msg_fg_highlight {
+        write!(
+            w,
+            "{ts_color}{timestamp}{reset} [{level_color}{level_str}{reset}]\n[{module_color}{module}{reset}] {msg_color}{msg}{reset}\n",
+            ts_color = timestamp_color,
+            timestamp = timestamp,
+            reset = reset,
+            level_color = level_color,
+            level_str = level_str,
+            module_color = module_color,
+            module = module,
+            msg_color = msg_color,
+            msg = record.args(),
+        )
+    } else {
+        write!(
+            w,
+            "{ts_color}{timestamp}{reset} [{level_color}{level_str}{reset}] \n[{module_color}{module}{reset}] {msg_color}{msg}{reset}\n",
+            ts_color = timestamp_color,
+            timestamp = timestamp,
+            reset = reset,
+            level_color = level_color,
+            level_str = level_str,
+            module_color = module_color,
+            module = module,
+            msg_color = msg_color,
+            msg = record.args()
+        )
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(debug_assertions)]
+    let log_spec = LogSpecification::builder()
+        .module("notes", log::LevelFilter::Trace)
+        .build();
+
+    #[cfg(not(debug_assertions))]
+    let log_spec = LogSpecification::builder()
+        .module("notes", log::LevelFilter::Info)
+        .build();
+
+    let log_dir = std::env::temp_dir().join("notes_logs");
+    std::fs::create_dir_all(&log_dir).unwrap_or_else(|e| {
+        eprintln!("Failed to create log directory: {}", e);
+    });
+
+    let mut logger = Logger::with(log_spec)
+        .log_to_file(FileSpec::default().directory(log_dir))
+        .rotate(
+            Criterion::Age(Age::Day),
+            Naming::Timestamps,
+            Cleanup::KeepLogFiles(3),
+        )
+        .format_for_files(flexi_logger::detailed_format);
+
+    #[cfg(debug_assertions)]
+    {
+        use flexi_logger::Duplicate;
+        logger = logger
+            .duplicate_to_stdout(Duplicate::All)
+            .format_for_stdout(custom_colored_format);
+    }
+
+    logger.start().unwrap_or_else(|e| {
+        panic!("Failed to initialize logger: {}", e);
+    });
+
     tauri::Builder::default()
-        .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .plugin(
+            tauri_plugin_window_state::Builder::new()
+                .skip_initial_state(&format!("{MAIN_WINDOW_PREFIX}0"))
+                .build(),
+        )
+        .setup(|app_handle: &mut App| {
+            debug_log!("Setting up Tauri application");
+
+            app_handle.manage(AppState::default());
+
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            restore_window_to_default_dimensions
+        ])
+        .build(tauri::generate_context!())
+        .expect("error while running tauri application")
+        .run(|app_handle, event| {
+            match event {
+                RunEvent::Ready => {
+                    debug_log!("Application is ready, creating main window");
+                    let handle = app_handle.clone();
+                    let window = window::create_main_window(
+                        &handle,
+                        "/",
+                        Some((window::DEFAULT_WINDOW_WIDTH, window::DEFAULT_WINDOW_HEIGHT)),
+                    );
+
+                    tauri::async_runtime::spawn(async move {
+                        match window.restore_state(StateFlags::all()) {
+                            Ok(_) => {
+                                debug_log!("Restored window size successfully");
+                            }
+                            Err(e) => error!("Failed to restore window size: {:?}", e),
+                        }
+                    });
+                }
+
+                RunEvent::WindowEvent {
+                    event: WindowEvent::Focused(true),
+                    label,
+                    ..
+                } => {
+                    debug_log!("Window focused: {}", label);
+                }
+
+                RunEvent::WindowEvent {
+                    event: WindowEvent::CloseRequested { .. },
+                    label,
+                    ..
+                } => {
+                    debug_log!("Window close requested: {}", label);
+                    if !label.starts_with(window::OTHER_WINDOW_PREFIX)
+                        && !(app_handle.webview_windows().len() > 1)
+                    {
+                        if let Err(e) = app_handle.save_window_state(StateFlags::all()) {
+                            warn!("Failed to save window state {e:?}");
+                        } else {
+                            debug_log!("Window state saved successfully");
+                        };
+                    } else {
+                        debug_log!("Skipping window state save for label: {}", label);
+                    }
+                }
+                _ => {}
+            };
+        })
 }
