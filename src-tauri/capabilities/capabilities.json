@@ -1,0 +1,8 @@
+{
+  "$schema": "../gen/schemas/capabilities.json",
+  "identifier": "main",
+  "description": "Main permissions",
+  "local": true,
+  "windows": ["main"],
+  "permissions": []
+}
