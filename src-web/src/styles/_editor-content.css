@@ -32,7 +32,7 @@
   }
 
   ol {
-    @apply list-decimal m-0 mb-2 ps-6.5;
+    @apply list-decimal mb-2 ps-6.5;
 
     li::marker {
       @apply tracking-tighter;
@@ -48,6 +48,8 @@
   }
 
   ul[data-type='taskList'] {
+    @apply ml-0.5 mb-2;
+
     li:has(input[type='checkbox']) {
       @apply flex items-start mb-2;
 
@@ -67,7 +69,7 @@
         }
 
         span {
-          @apply block size-4 border border-red-500 rounded-md;
+          @apply block size-4 border-[1.5px] border-red-500 rounded-md;
 
           &::before {
             @apply size-3 left-0.5 top-0.5 content-[''] absolute opacity-0;
@@ -106,5 +108,9 @@
 
   p.is-empty::before {
     @apply text-gray-400 h-0 float-left pointer-events-none content-[attr(data-placeholder)];
+  }
+
+  hr {
+    @apply my-4 border-zinc-300;
   }
 }

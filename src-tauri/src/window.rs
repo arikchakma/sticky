@@ -22,6 +22,7 @@ pub(crate) struct CreateWindowConfig<'s> {
     pub navigation_tx: Option<mpsc::Sender<String>>,
     pub close_tx: Option<mpsc::Sender<()>>,
     pub hide_titlebar: bool,
+    pub always_on_top: bool,
 }
 
 pub(crate) fn create_window<R: Runtime>(
@@ -77,6 +78,10 @@ pub(crate) fn create_window<R: Runtime>(
                 .hidden_title(true)
                 .title_bar_style(TitleBarStyle::Overlay);
         }
+    }
+
+    if config.always_on_top {
+        win_builder = win_builder.always_on_top(true);
     }
 
     if let Some(w) = handle.webview_windows().get(config.label) {
@@ -166,6 +171,7 @@ pub fn create_main_window(
         inner_size: size,
         position: Some((100.0, 100.0)),
         hide_titlebar: true,
+        always_on_top: true,
         ..Default::default()
     };
 
