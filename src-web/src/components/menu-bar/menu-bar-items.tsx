@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { LinkSelectorPopover } from './link-selector-popover';
+import { HeadingSelector } from './heading-selector';
 
 type MenuBarItemsProps = {
   editor: Editor;
@@ -40,9 +41,15 @@ export function MenuBarItems(props: MenuBarItemsProps) {
 
       isCodeBlock: ctx.editor.isActive('codeBlock'),
       isQuote: ctx.editor.isActive('blockquote'),
+
       isHeading1: ctx.editor.isActive('heading', { level: 1 }),
+      isHeading2: ctx.editor.isActive('heading', { level: 2 }),
+      isHeading3: ctx.editor.isActive('heading', { level: 3 }),
     }),
   });
+
+  const isHeadingActive =
+    stats.isHeading1 || stats.isHeading2 || stats.isHeading3;
 
   const items = [
     {
@@ -50,7 +57,7 @@ export function MenuBarItems(props: MenuBarItemsProps) {
       icon: Heading1Icon,
       title: 'Heading 1',
       action: () => editor.chain().focus().toggleHeading({ level: 1 }).run(),
-      isActive: stats.isHeading1,
+      isActive: isHeadingActive,
     },
     {
       type: 'bold',
@@ -144,6 +151,27 @@ export function MenuBarItems(props: MenuBarItemsProps) {
                 editor.chain().focus().toggleLink({ href: url }).run();
               }}
               onRemove={() => editor.chain().focus().unsetLink().run()}
+            />
+          );
+        }
+
+        if (item.type === 'heading') {
+          const currentLevel = stats.isHeading1
+            ? 1
+            : stats.isHeading2
+              ? 2
+              : stats.isHeading3
+                ? 3
+                : null;
+
+          return (
+            <HeadingSelector
+              key={item.title}
+              isActive={item.isActive}
+              currentLevel={currentLevel}
+              onSelect={(level) =>
+                editor.chain().focus().toggleHeading({ level }).run()
+              }
             />
           );
         }
