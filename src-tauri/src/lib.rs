@@ -188,7 +188,7 @@ pub fn run() {
                     let is_first_main_window = label == format!("{MAIN_WINDOW_PREFIX}0");
                     if !label.starts_with(window::OTHER_WINDOW_PREFIX)
                         && !(app_handle.webview_windows().len() > 1)
-                        && !is_first_main_window
+                        && is_first_main_window
                     {
                         if let Err(e) = app_handle.save_window_state(StateFlags::all()) {
                             warn!("Failed to save window state {e:?}");

@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "notes",
+  "productName": "sticky",
   "version": "0.1.0",
-  "identifier": "com.notes.com",
+  "identifier": "com.sticky.fyi",
   "build": {
     "beforeDevCommand": "pnpm tauri:before-dev",
     "devUrl": "http://localhost:1420",

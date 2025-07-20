@@ -90,7 +90,7 @@ function IndexPage() {
       scrollMargin: 80,
       attributes: {
         class:
-          'focus:outline-none accent-red-500 border-none p-5 pb-0 caret-red-500 editor-content grow',
+          'focus:outline-none accent-red-500 border-none px-5 mt-2 py-0 caret-red-500 editor-content grow',
       },
     },
   });

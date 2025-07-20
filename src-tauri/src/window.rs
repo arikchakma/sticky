@@ -10,7 +10,7 @@ pub const DEFAULT_WINDOW_WIDTH: f64 = 400.0;
 pub const DEFAULT_WINDOW_HEIGHT: f64 = 700.0;
 
 pub const MIN_WINDOW_WIDTH: f64 = 400.0;
-pub const MIN_WINDOW_HEIGHT: f64 = 400.0;
+pub const MIN_WINDOW_HEIGHT: f64 = 180.0;
 
 pub const MAX_WINDOW_WIDTH: f64 = 700.0;
 

@@ -1,12 +1,12 @@
 {
-  "name": "notes",
+  "name": "sticky",
   "private": true,
   "version": "0.1.0",
   "type": "module",
   "scripts": {
     "tauri": "tauri",
-    "tauri:before-dev": "pnpm --filter @notes/app dev",
-    "tauri:before-build": "pnpm --filter @notes/app build",
+    "tauri:before-dev": "pnpm --filter @sticky/app dev",
+    "tauri:before-build": "pnpm --filter @sticky/app build",
     "format:write": "prettier --write \"**/*.{ts,tsx,md}\"",
     "format:organize": "prettier --write \"**/*.{ts,tsx,md}\" --plugin=prettier-plugin-organize-imports"
   },
