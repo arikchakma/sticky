@@ -35,7 +35,7 @@ export function HeadingSelector(props: HeadingSelectorProps) {
           )}
         >
           <HeadingIcon className="w-4 h-4" />
-          <ChevronUpIcon className="w-4 h-4" />
+          <ChevronUpIcon className="w-3 h-3" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="gap-0.5 flex flex-col">

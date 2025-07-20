@@ -7,11 +7,14 @@ import { routeTree } from './routeTree.gen';
 
 import './styles/global.css';
 import { reportWebVitals } from './report-web-vitals.ts';
+import { queryClient } from './lib/query-client.ts';
 
 // Create a new router instance
 const router = createRouter({
   routeTree,
-  context: {},
+  context: {
+    queryClient,
+  },
   defaultPreload: 'intent',
   scrollRestoration: true,
   defaultStructuralSharing: true,
@@ -25,7 +28,6 @@ declare module '@tanstack/react-router' {
   }
 }
 
-// Render the app
 const rootElement = document.getElementById('app');
 if (rootElement && !rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement);

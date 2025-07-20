@@ -10,7 +10,7 @@ unsafe impl Send for UnsafeWindowHandle {}
 unsafe impl Sync for UnsafeWindowHandle {}
 
 const WINDOW_CONTROL_PAD_X: f64 = 13.0;
-const WINDOW_CONTROL_PAD_Y: f64 = 18.0;
+const WINDOW_CONTROL_PAD_Y: f64 = 16.0;
 const MAIN_WINDOW_PREFIX: &str = "main_";
 
 fn position_traffic_lights(ns_window_handle: UnsafeWindowHandle, x: f64, y: f64, label: String) {

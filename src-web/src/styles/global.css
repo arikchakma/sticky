@@ -11,3 +11,20 @@
 
   --window-menu-height: 36px;
 }
+
+body {
+  @apply selection:bg-red-200/70;
+}
+
+@utility hide-scrollbar {
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@utility shadow-border {
+  box-shadow: 0 0 0 1px var(--tw-shadow-color, #00000014);
+}
