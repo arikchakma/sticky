@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "com.notes.com",
   "build": {
-    "beforeDevCommand": "pnpm tauri-before-dev",
+    "beforeDevCommand": "pnpm tauri:before-dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "pnpm tauri-before-build",
+    "beforeBuildCommand": "pnpm tauri:before-build",
     "frontendDist": "../dist"
   },
   "app": {

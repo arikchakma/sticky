@@ -10,7 +10,7 @@ export const Divider = forwardRef<HTMLDivElement, DividerProps>(
       <div
         {...rest}
         ref={ref}
-        className={cn('h-px bg-zinc-200 w-full', className)}
+        className={cn('h-px w-full bg-zinc-200', className)}
       />
     );
   }

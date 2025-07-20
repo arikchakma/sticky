@@ -1,9 +1,9 @@
-import { forwardRef, useState } from 'react';
-import { MenuBarItems } from './menu-bar-items';
 import { useEditorState, type Editor } from '@tiptap/react';
-import { Button } from '../ui/button';
 import { TypeIcon, XCircleIcon } from 'lucide-react';
+import { forwardRef, useState } from 'react';
 import { cn } from '~/utils/classname';
+import { Button } from '../ui/button';
+import { MenuBarItems } from './menu-bar-items';
 
 type MenuBarProps = {
   editor: Editor;
@@ -26,17 +26,17 @@ export const MenuBar = forwardRef<HTMLDivElement, MenuBarProps>(
     });
 
     return (
-      <div ref={ref} className="flex items-center p-1 h-9.5 relative shrink-0">
+      <div ref={ref} className="h-9.5 relative flex shrink-0 items-center p-1">
         <div
           className={cn(
-            'flex items-center justify-center grow',
+            'flex grow items-center justify-center',
             showMenuBarItems && 'justify-start'
           )}
         >
           {showMenuBarItems && <MenuBarItems editor={editor} />}
           {!showMenuBarItems && (
             <button
-              className="text-sm text-zinc-300 font-medium focus:outline-none hover:text-zinc-400 transition-colors duration-150"
+              className="text-sm font-medium text-zinc-300 transition-colors duration-150 hover:text-zinc-400 focus:outline-none"
               onClick={() =>
                 setCountType(
                   countType === 'characters' ? 'words' : 'characters'
@@ -55,12 +55,12 @@ export const MenuBar = forwardRef<HTMLDivElement, MenuBarProps>(
             onClick={() => setShowMenuBarItems(!showMenuBarItems)}
             variant="ghost"
             size="icon"
-            className="size-7 text-zinc-300 hover:text-zinc-600 transition-colors duration-150 shrink-0"
+            className="size-7 shrink-0 text-zinc-300 transition-colors duration-150 hover:text-zinc-600"
           >
             {showMenuBarItems ? (
-              <XCircleIcon className="w-4 h-4 [&_circle]:fill-current [&_path]:stroke-white" />
+              <XCircleIcon className="h-4 w-4 [&_circle]:fill-current [&_path]:stroke-white" />
             ) : (
-              <TypeIcon className="w-4 h-4" />
+              <TypeIcon className="h-4 w-4" />
             )}
           </Button>
         </div>

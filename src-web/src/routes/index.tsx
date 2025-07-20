@@ -1,14 +1,14 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { EditorContent, useEditor } from '@tiptap/react';
-import { useMemo, useRef } from 'react';
-import StarterKit from '@tiptap/starter-kit';
-import { ListKit } from '@tiptap/extension-list';
-import { MenuBar } from '~/components/menu-bar/menu-bar';
 import { CharacterCount } from '@tiptap/extension-character-count';
-import { Divider } from '~/components/divider';
-import { clamp } from '~/utils/number';
+import { ListKit } from '@tiptap/extension-list';
 import { Placeholder } from '@tiptap/extensions/placeholder';
+import { EditorContent, useEditor } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import { useMemo, useRef } from 'react';
+import { Divider } from '~/components/divider';
+import { MenuBar } from '~/components/menu-bar/menu-bar';
 import { CodeBlock } from '~/lib/highlighter';
+import { clamp } from '~/utils/number';
 
 export const Route = createFileRoute('/')({
   component: IndexPage,
@@ -116,19 +116,19 @@ function IndexPage() {
   return (
     <main>
       <div
-        className="fixed top-0 left-0 h-[var(--window-menu-height)] w-full bg-white"
+        className="fixed left-0 top-0 h-[var(--window-menu-height)] w-full bg-white"
         data-tauri-drag-region
       />
 
       <div
-        className="flex h-[calc(100vh-var(--window-menu-height))] flex-col mt-[var(--window-menu-height)]"
+        className="mt-[var(--window-menu-height)] flex h-[calc(100vh-var(--window-menu-height))] flex-col"
         ref={containerRef}
       >
         <Divider ref={topDividerRef} className="opacity-0" />
 
         <EditorContent
           editor={editor}
-          className="grow overflow-y-auto flex flex-col"
+          className="flex grow flex-col overflow-y-auto"
           onScroll={onScroll}
         />
         <Divider ref={bottomDividerRef} className="opacity-0" />

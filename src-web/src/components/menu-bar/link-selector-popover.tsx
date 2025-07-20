@@ -1,9 +1,9 @@
 import { ArrowRightIcon, LinkIcon, XIcon } from 'lucide-react';
-import { Button } from '../ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { Input } from '../ui/input';
 import { useRef, useState } from 'react';
 import { cn } from '~/utils/classname';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 
 type LinkSelectorPopoverProps = {
   defaultValue: string;
@@ -45,27 +45,27 @@ export function LinkSelectorPopover(props: LinkSelectorPopoverProps) {
           variant="ghost"
           size="icon"
           className={cn(
-            'size-7 text-zinc-500 data-[state=open]:text-black hover:text-zinc-500',
+            'size-7 text-zinc-500 hover:text-zinc-500 data-[state=open]:text-black',
             isActive && 'text-black'
           )}
         >
-          <LinkIcon className="w-4 h-4" />
+          <LinkIcon className="h-4 w-4" />
         </Button>
       </PopoverTrigger>
       <PopoverContent
         align="center"
-        className="w-64 p-0 overflow-hidden rounded-xl caret-red-500"
+        className="w-64 overflow-hidden rounded-xl p-0 caret-red-500"
       >
         <form className="relative" onSubmit={handleSubmit}>
           <Input
             type="url"
             ref={inputRef}
             autoFocus
-            className="border-none shadow-none rounded-none pr-9 focus-visible:ring-0"
+            className="rounded-none border-none pr-9 shadow-none focus-visible:ring-0"
             placeholder="https://arikko.dev"
             defaultValue={defaultValue}
           />
-          <div className="absolute right-1 top-0 bottom-0 flex items-center">
+          <div className="absolute bottom-0 right-1 top-0 flex items-center">
             {defaultValue && (
               <Button
                 type="button"
@@ -74,7 +74,7 @@ export function LinkSelectorPopover(props: LinkSelectorPopoverProps) {
                 className="size-7 text-zinc-500 hover:text-black"
                 onClick={handleRemove}
               >
-                <XIcon className="w-4 h-4" />
+                <XIcon className="h-4 w-4" />
               </Button>
             )}
 
@@ -85,7 +85,7 @@ export function LinkSelectorPopover(props: LinkSelectorPopoverProps) {
                 size="icon"
                 className="size-7 text-zinc-500 hover:text-black"
               >
-                <ArrowRightIcon className="w-4 h-4" />
+                <ArrowRightIcon className="h-4 w-4" />
               </Button>
             )}
           </div>
