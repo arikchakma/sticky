@@ -12,8 +12,10 @@
   --window-menu-height: 36px;
 }
 
-body {
-  @apply selection:bg-red-200/70 bg-white;
+html,
+body,
+#root {
+  @apply h-full w-full overflow-hidden bg-white selection:bg-red-200/70;
 }
 
 :not(iframe) {
@@ -27,7 +29,7 @@ body {
   }
 
   &::-webkit-scrollbar-thumb {
-    @apply bg-gray-200 rounded-sm;
+    @apply rounded-sm bg-gray-200;
   }
 
   &::-webkit-scrollbar-thumb:hover {

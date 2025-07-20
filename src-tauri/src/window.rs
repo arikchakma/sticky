@@ -167,7 +167,11 @@ pub(crate) fn create_window<R: Runtime>(
     win
 }
 
-pub fn create_main_window(handle: &AppHandle, url: &str) -> WebviewWindow {
+pub fn create_main_window(
+    handle: &AppHandle,
+    url: &str,
+    position: Option<(f64, f64)>,
+) -> WebviewWindow {
     let mut counter = 0;
     let label = loop {
         let label = format!("{MAIN_WINDOW_PREFIX}{counter}");
@@ -178,12 +182,14 @@ pub fn create_main_window(handle: &AppHandle, url: &str) -> WebviewWindow {
     }
     .expect("Failed to generate label for new window");
 
+    let position = position.unwrap_or((100.0, 100.0));
+
     let config = CreateWindowConfig {
         url,
         label: label.as_str(),
-        title: "Notes",
+        title: "Sticky Notes",
         inner_size: Some((DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT)),
-        position: Some((100.0, 100.0)),
+        position: Some(position),
         hide_titlebar: true,
         always_on_top: true,
         max_size: Some((Some(MAX_WINDOW_WIDTH), None)),
@@ -198,6 +204,7 @@ pub fn create_child_window(
     url: &str,
     label: &str,
     title: &str,
+    inner_size: (f64, f64),
 ) -> WebviewWindow {
     let app_handle = parent_window.app_handle();
     let label = format!("{OTHER_WINDOW_PREFIX}_{label}");
@@ -212,8 +219,6 @@ pub fn create_child_window(
         .unwrap()
         .to_logical::<f64>(scale_factor);
 
-    let inner_size = (MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT);
-
     let position = (
         current_pos.x + current_size.width / 2.0 - inner_size.0 / 2.0,
         current_pos.y + current_size.height / 2.0 - inner_size.1 / 2.0,
@@ -226,7 +231,6 @@ pub fn create_child_window(
         inner_size: Some(inner_size),
         position: Some(position),
         hide_titlebar: true,
-        max_size: Some((Some(MAX_WINDOW_WIDTH), None)),
         ..Default::default()
     };
 

@@ -24,14 +24,20 @@ async fn cmd_new_child_window(
     url: &str,
     label: &str,
     title: &str,
+    inner_size: (f64, f64),
 ) -> Result<(), String> {
-    window::create_child_window(&parent_window, url, label, title);
+    window::create_child_window(&parent_window, url, label, title, inner_size);
     Ok(())
 }
 
 #[tauri::command]
-async fn cmd_new_main_window(app_handle: AppHandle, url: &str) -> Result<(), String> {
-    window::create_main_window(&app_handle, url);
+async fn cmd_new_main_window(
+    app_handle: AppHandle,
+    url: &str,
+    position: Option<(f64, f64)>,
+) -> Result<(), String> {
+    println!("Creating main window at position: {:?}", position);
+    window::create_main_window(&app_handle, url, position);
     Ok(())
 }
 
@@ -153,7 +159,7 @@ pub fn run() {
                 RunEvent::Ready => {
                     debug_log!("Application is ready, creating main window");
                     let handle = app_handle.clone();
-                    let window = window::create_main_window(&handle, "/");
+                    let window = window::create_main_window(&handle, "/", None);
 
                     tauri::async_runtime::spawn(async move {
                         match window.restore_state(StateFlags::all()) {
@@ -179,8 +185,10 @@ pub fn run() {
                     ..
                 } => {
                     debug_log!("Window close requested: {}", label);
+                    let is_first_main_window = label == format!("{MAIN_WINDOW_PREFIX}0");
                     if !label.starts_with(window::OTHER_WINDOW_PREFIX)
                         && !(app_handle.webview_windows().len() > 1)
+                        && !is_first_main_window
                     {
                         if let Err(e) = app_handle.save_window_state(StateFlags::all()) {
                             warn!("Failed to save window state {e:?}");

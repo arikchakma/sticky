@@ -30,7 +30,7 @@ export function HeadingSelector(props: HeadingSelectorProps) {
           variant="ghost"
           size="icon"
           className={cn(
-            'h-7 gap-0 text-zinc-500 hover:text-zinc-500 data-[state=open]:text-black',
+            'h-7 w-auto gap-0 text-zinc-500 hover:text-zinc-500 data-[state=open]:text-black',
             isActive && 'text-black'
           )}
         >

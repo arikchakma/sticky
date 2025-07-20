@@ -6,6 +6,7 @@ import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useMemo, useRef } from 'react';
 import { Divider } from '~/components/divider';
+import { Header } from '~/components/header';
 import { MenuBar } from '~/components/menu-bar/menu-bar';
 import { CodeBlock } from '~/lib/highlighter';
 import { clamp } from '~/utils/number';
@@ -66,7 +67,14 @@ function IndexPage() {
       ListKit,
       CharacterCount,
       Placeholder.configure({
-        placeholder: 'Start typing...',
+        placeholder: (props) => {
+          const { editor } = props;
+          if (editor.isEmpty) {
+            return 'Start typing...';
+          }
+
+          return 'Write something...';
+        },
       }),
       CodeBlock,
     ],
@@ -115,10 +123,7 @@ function IndexPage() {
 
   return (
     <main>
-      <div
-        className="fixed left-0 top-0 h-[var(--window-menu-height)] w-full bg-white"
-        data-tauri-drag-region
-      />
+      <Header />
 
       <div
         className="mt-[var(--window-menu-height)] flex h-[calc(100vh-var(--window-menu-height))] flex-col"
