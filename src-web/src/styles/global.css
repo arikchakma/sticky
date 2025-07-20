@@ -16,7 +16,27 @@ body {
   @apply selection:bg-red-200/70 bg-white;
 }
 
+:not(iframe) {
+  &::-webkit-scrollbar,
+  &::-webkit-scrollbar-corner {
+    @apply size-2 bg-transparent;
+  }
+
+  &::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    @apply bg-gray-200 rounded-sm;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    @apply opacity-40!;
+  }
+}
+
 @utility hide-scrollbar {
+  &::-webkit-scrollbar-corner,
   &::-webkit-scrollbar {
     display: none;
   }

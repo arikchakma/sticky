@@ -1,7 +1,7 @@
 use flexi_logger::LogSpecification;
 use flexi_logger::{Age, Cleanup, Criterion, FileSpec, Logger, Naming};
 use log::{error, warn};
-use tauri::{App, LogicalSize, Manager, RunEvent, Size, WebviewWindow, WindowEvent};
+use tauri::{App, AppHandle, Manager, RunEvent, WebviewWindow, WindowEvent};
 use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
 
 #[cfg(target_os = "macos")]
@@ -19,18 +19,19 @@ use window::MAIN_WINDOW_PREFIX;
 pub struct AppState {}
 
 #[tauri::command]
-async fn restore_window_to_default_dimensions(window: WebviewWindow) -> Result<(), String> {
-    window
-        .set_size(Size::Logical(LogicalSize {
-            width: window::DEFAULT_WINDOW_WIDTH,
-            height: window::DEFAULT_WINDOW_HEIGHT,
-        }))
-        .map_err(|e| format!("Failed to restore window size: {}", e))?;
+async fn cmd_new_child_window(
+    parent_window: WebviewWindow,
+    url: &str,
+    label: &str,
+    title: &str,
+) -> Result<(), String> {
+    window::create_child_window(&parent_window, url, label, title);
+    Ok(())
+}
 
-    window
-        .center()
-        .map_err(|e| format!("Failed to center window: {}", e))?;
-
+#[tauri::command]
+async fn cmd_new_main_window(app_handle: AppHandle, url: &str) -> Result<(), String> {
+    window::create_main_window(&app_handle, url);
     Ok(())
 }
 
@@ -142,7 +143,8 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            restore_window_to_default_dimensions
+            cmd_new_child_window,
+            cmd_new_main_window,
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
@@ -151,11 +153,7 @@ pub fn run() {
                 RunEvent::Ready => {
                     debug_log!("Application is ready, creating main window");
                     let handle = app_handle.clone();
-                    let window = window::create_main_window(
-                        &handle,
-                        "/",
-                        Some((window::DEFAULT_WINDOW_WIDTH, window::DEFAULT_WINDOW_HEIGHT)),
-                    );
+                    let window = window::create_main_window(&handle, "/");
 
                     tauri::async_runtime::spawn(async move {
                         match window.restore_state(StateFlags::all()) {

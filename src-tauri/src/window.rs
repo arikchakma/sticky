@@ -167,11 +167,7 @@ pub(crate) fn create_window<R: Runtime>(
     win
 }
 
-pub fn create_main_window(
-    handle: &AppHandle,
-    url: &str,
-    size: Option<(f64, f64)>,
-) -> WebviewWindow {
+pub fn create_main_window(handle: &AppHandle, url: &str) -> WebviewWindow {
     let mut counter = 0;
     let label = loop {
         let label = format!("{MAIN_WINDOW_PREFIX}{counter}");
@@ -186,7 +182,7 @@ pub fn create_main_window(
         url,
         label: label.as_str(),
         title: "Notes",
-        inner_size: size,
+        inner_size: Some((DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT)),
         position: Some((100.0, 100.0)),
         hide_titlebar: true,
         always_on_top: true,
@@ -195,4 +191,75 @@ pub fn create_main_window(
     };
 
     create_window(handle, config)
+}
+
+pub fn create_child_window(
+    parent_window: &WebviewWindow,
+    url: &str,
+    label: &str,
+    title: &str,
+) -> WebviewWindow {
+    let app_handle = parent_window.app_handle();
+    let label = format!("{OTHER_WINDOW_PREFIX}_{label}");
+    let scale_factor = parent_window.scale_factor().unwrap();
+
+    let current_pos = parent_window
+        .inner_position()
+        .unwrap()
+        .to_logical::<f64>(scale_factor);
+    let current_size = parent_window
+        .inner_size()
+        .unwrap()
+        .to_logical::<f64>(scale_factor);
+
+    let inner_size = (MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT);
+
+    let position = (
+        current_pos.x + current_size.width / 2.0 - inner_size.0 / 2.0,
+        current_pos.y + current_size.height / 2.0 - inner_size.1 / 2.0,
+    );
+
+    let config = CreateWindowConfig {
+        label: label.as_str(),
+        title,
+        url,
+        inner_size: Some(inner_size),
+        position: Some(position),
+        hide_titlebar: true,
+        max_size: Some((Some(MAX_WINDOW_WIDTH), None)),
+        ..Default::default()
+    };
+
+    let child_window = create_window(&app_handle, config);
+
+    {
+        let parent_window = parent_window.clone();
+        let child_window = child_window.clone();
+        child_window.clone().on_window_event(move |e| match e {
+            WindowEvent::Destroyed => {
+                if let Some(w) = parent_window.get_webview_window(child_window.label()) {
+                    w.set_focus().unwrap();
+                }
+            }
+            _ => {}
+        });
+    }
+
+    {
+        let parent_window = parent_window.clone();
+        let child_window = child_window.clone();
+        parent_window.clone().on_window_event(move |e| match e {
+            WindowEvent::CloseRequested { .. } => child_window.close().unwrap(),
+            WindowEvent::Focused(focus) => {
+                if *focus {
+                    if let Some(w) = parent_window.get_webview_window(child_window.label()) {
+                        w.set_focus().unwrap();
+                    };
+                }
+            }
+            _ => {}
+        });
+    }
+
+    child_window
 }

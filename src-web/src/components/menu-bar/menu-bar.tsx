@@ -36,7 +36,7 @@ export const MenuBar = forwardRef<HTMLDivElement, MenuBarProps>(
           {showMenuBarItems && <MenuBarItems editor={editor} />}
           {!showMenuBarItems && (
             <button
-              className="text-sm text-zinc-400 font-medium focus:outline-none"
+              className="text-sm text-zinc-300 font-medium focus:outline-none hover:text-zinc-400 transition-colors duration-150"
               onClick={() =>
                 setCountType(
                   countType === 'characters' ? 'words' : 'characters'
@@ -55,7 +55,7 @@ export const MenuBar = forwardRef<HTMLDivElement, MenuBarProps>(
             onClick={() => setShowMenuBarItems(!showMenuBarItems)}
             variant="ghost"
             size="icon"
-            className="size-7 text-zinc-500 shrink-0"
+            className="size-7 text-zinc-300 hover:text-zinc-600 transition-colors duration-150 shrink-0"
           >
             {showMenuBarItems ? (
               <XCircleIcon className="w-4 h-4 [&_circle]:fill-current [&_path]:stroke-white" />

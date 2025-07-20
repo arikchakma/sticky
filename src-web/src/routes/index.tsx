@@ -87,12 +87,14 @@ function IndexPage() {
     },
   });
 
-  const dividerRef = useRef<HTMLDivElement>(null);
+  const bottomDividerRef = useRef<HTMLDivElement>(null);
+  const topDividerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const onScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const divider = dividerRef.current;
-    if (!divider) {
+    const bottomDivider = bottomDividerRef.current;
+    const topDivider = topDividerRef.current;
+    if (!bottomDivider || !topDivider) {
       return;
     }
 
@@ -103,14 +105,18 @@ function IndexPage() {
     const scrollBottom = scrollTop + clientHeight;
 
     const distance = scrollHeight - scrollBottom;
-    const opacity = clamp(distance / 17, [0, 1]);
-    divider.style.opacity = String(opacity);
+    const bottomOpacity = clamp(distance / 17, [0, 1]);
+    bottomDivider.style.opacity = String(bottomOpacity);
+
+    const topDistance = scrollTop;
+    const topOpacity = clamp(topDistance / 15, [0, 1]);
+    topDivider.style.opacity = String(topOpacity);
   };
 
   return (
     <main>
       <div
-        className="fixed top-0 left-0 h-[var(--window-menu-height)] w-full border-b border-gray-200 bg-white"
+        className="fixed top-0 left-0 h-[var(--window-menu-height)] w-full bg-white"
         data-tauri-drag-region
       />
 
@@ -118,12 +124,14 @@ function IndexPage() {
         className="flex h-[calc(100vh-var(--window-menu-height))] flex-col mt-[var(--window-menu-height)]"
         ref={containerRef}
       >
+        <Divider ref={topDividerRef} className="opacity-0" />
+
         <EditorContent
           editor={editor}
           className="grow overflow-y-auto flex flex-col"
           onScroll={onScroll}
         />
-        <Divider ref={dividerRef} className="opacity-0" />
+        <Divider ref={bottomDividerRef} className="opacity-0" />
         <MenuBar editor={editor} />
       </div>
     </main>
