@@ -21,7 +21,7 @@ const content = `
   println!("Hello, world!");
 }</code></pre>
 <hr>
-<p>Notes is a <a href="https://arikk.dev">note-taking app</a> that allows you to take notes with a focus on simplicity and ease of use inspired by <a href="https://www.raycast.com/notes">Raycast Notes</a>.</p>
+<p>Notes is a <a href="https://arikk.dev">note-taking app</a> that allows you to take notes with a focus on simplicity and ease of use.</p>
 <pre><code class="language-typescript">// This is a comment explaining constants and functions
 const PI = 3.14159;
 const URL = "https://example.com";

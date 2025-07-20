@@ -12,6 +12,8 @@ pub const DEFAULT_WINDOW_HEIGHT: f64 = 700.0;
 pub const MIN_WINDOW_WIDTH: f64 = 400.0;
 pub const MIN_WINDOW_HEIGHT: f64 = 400.0;
 
+pub const MAX_WINDOW_WIDTH: f64 = 700.0;
+
 #[derive(Default, Debug)]
 pub(crate) struct CreateWindowConfig<'s> {
     pub url: &'s str,
@@ -23,6 +25,7 @@ pub(crate) struct CreateWindowConfig<'s> {
     pub close_tx: Option<mpsc::Sender<()>>,
     pub hide_titlebar: bool,
     pub always_on_top: bool,
+    pub max_size: Option<(Option<f64>, Option<f64>)>,
 }
 
 pub(crate) fn create_window<R: Runtime>(
@@ -77,6 +80,21 @@ pub(crate) fn create_window<R: Runtime>(
             win_builder = win_builder
                 .hidden_title(true)
                 .title_bar_style(TitleBarStyle::Overlay);
+        }
+    }
+
+    if let Some((max_width, max_height)) = config.max_size {
+        match (max_width, max_height) {
+            (Some(w), Some(h)) => {
+                win_builder = win_builder.max_inner_size(w, h);
+            }
+            (Some(w), None) => {
+                win_builder = win_builder.max_inner_size(w, f64::MAX);
+            }
+            (None, Some(h)) => {
+                win_builder = win_builder.max_inner_size(f64::MAX, h);
+            }
+            _ => {}
         }
     }
 
@@ -172,6 +190,7 @@ pub fn create_main_window(
         position: Some((100.0, 100.0)),
         hide_titlebar: true,
         always_on_top: true,
+        max_size: Some((Some(MAX_WINDOW_WIDTH), None)),
         ..Default::default()
     };
 

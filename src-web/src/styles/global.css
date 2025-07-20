@@ -13,7 +13,7 @@
 }
 
 body {
-  @apply selection:bg-red-200/70;
+  @apply selection:bg-red-200/70 bg-white;
 }
 
 @utility hide-scrollbar {
