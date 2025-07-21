@@ -2,14 +2,24 @@ import { createFileRoute } from '@tanstack/react-router';
 import { CharacterCount } from '@tiptap/extension-character-count';
 import { ListKit } from '@tiptap/extension-list';
 import { Placeholder } from '@tiptap/extensions/placeholder';
-import { EditorContent, useEditor } from '@tiptap/react';
+import { Editor, EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Divider } from '~/components/divider';
 import { Header } from '~/components/header';
 import { MenuBar } from '~/components/menu-bar/menu-bar';
 import { CodeBlock } from '~/lib/highlighter';
 import { clamp } from '~/utils/number';
+import {
+  currentMonitor,
+  getCurrentWindow,
+  PhysicalSize,
+} from '@tauri-apps/api/window';
+import { ReplaceAroundStep, ReplaceStep, Step } from '@tiptap/pm/transform';
+
+function isReplaceStep(step: Step) {
+  return step instanceof ReplaceStep || step instanceof ReplaceAroundStep;
+}
 
 export const Route = createFileRoute('/')({
   component: IndexPage,
@@ -51,6 +61,51 @@ console.log("Visit site:", URL); // link-like string
 // + Added line (simulated diff inserted)</code></pre>
 `;
 
+export function useMonitorSwitchDetector(
+  onMonitorChange: (monitorName: string | null, scaleFactor: number) => void
+) {
+  const prevMonitorNameRef = useRef<string | null>(null);
+  const prevScaleFactorRef = useRef<number | null>(null);
+
+  const checkMonitor = useCallback(async () => {
+    console.log('🔄 Checking monitor');
+
+    const monitor = await currentMonitor();
+    if (!monitor) return;
+
+    const { name, scaleFactor } = monitor;
+
+    const prevName = prevMonitorNameRef.current;
+    const prevScale = prevScaleFactorRef.current;
+
+    const monitorChanged = prevName !== null && name !== prevName;
+    const scaleChanged = prevScale !== null && scaleFactor !== prevScale;
+
+    if (monitorChanged || scaleChanged) {
+      onMonitorChange(name, scaleFactor);
+    }
+
+    prevMonitorNameRef.current = name;
+    prevScaleFactorRef.current = scaleFactor;
+  }, [onMonitorChange]);
+
+  useEffect(() => {
+    (async () => {
+      const monitor = await currentMonitor();
+      if (monitor) {
+        prevMonitorNameRef.current = monitor.name;
+        prevScaleFactorRef.current = monitor.scaleFactor;
+      }
+    })();
+
+    const unlisten = getCurrentWindow().onResized(checkMonitor);
+
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [checkMonitor]);
+}
+
 function IndexPage() {
   const extensions = useMemo(
     () => [
@@ -63,6 +118,7 @@ function IndexPage() {
         orderedList: false,
         listKeymap: false,
         codeBlock: false,
+        trailingNode: false,
       }),
       ListKit,
       CharacterCount,
@@ -81,17 +137,150 @@ function IndexPage() {
     []
   );
 
+  const shouldStopAutoResizeRef = useRef<boolean>(false);
+  useMonitorSwitchDetector(() => {
+    autosize(editor);
+  });
+
+  const prevEditorHeightRef = useRef<number>(0);
+  const isEditorUpdatedRef = useRef<boolean>(false);
+  const editorContentRef = useRef<HTMLDivElement>(null);
+
+  const autosize = useCallback((editor: Editor, shouldStop: boolean = true) => {
+    const editorContent = editorContentRef.current;
+    const topDivider = topDividerRef.current;
+    const bottomDivider = bottomDividerRef.current;
+    if (!editorContent || !topDivider || !bottomDivider) {
+      return;
+    }
+
+    editorContent.style.overflowY = 'scroll';
+    editorContent.style.flexGrow = '1';
+    editor?.commands?.focus();
+    shouldStopAutoResizeRef.current = shouldStop;
+  }, []);
+
   const editor = useEditor({
     extensions,
-    content,
+    content: '',
     autofocus: 'end',
     editorProps: {
-      scrollThreshold: 80,
-      scrollMargin: 80,
+      scrollThreshold: 20,
+      scrollMargin: 20,
       attributes: {
         class:
-          'focus:outline-none accent-red-500 border-none px-5 mt-2 py-0 caret-red-500 editor-content grow',
+          'focus:outline-none border-none px-5 pt-2 pb-0 editor-content grow',
       },
+    },
+    onCreate: ({ editor }) => {
+      if (isEditorUpdatedRef.current) {
+        return;
+      }
+
+      const rect = editor.view.dom.getBoundingClientRect();
+      const currentEditorHeight = rect.height;
+
+      if (currentEditorHeight > 115) {
+        autosize(editor);
+        return;
+      }
+
+      prevEditorHeightRef.current = currentEditorHeight;
+      isEditorUpdatedRef.current = true;
+    },
+    onTransaction: async ({ transaction }) => {
+      const editorContent = editorContentRef.current;
+      const topDivider = topDividerRef.current;
+      const bottomDivider = bottomDividerRef.current;
+      if (!editorContent || !topDivider || !bottomDivider) {
+        return;
+      }
+
+      const shouldStop = shouldStopAutoResizeRef.current;
+      if (shouldStop) {
+        return;
+      }
+
+      let type: 'delete' | 'insert' | null = null;
+      for (const step of transaction.steps) {
+        if (!isReplaceStep(step)) {
+          continue;
+        }
+
+        const slice = step.slice;
+        if (!slice) {
+          continue;
+        }
+
+        const content = slice.content;
+        if (content.size === 0) {
+          type = 'delete';
+          break;
+        } else if (content.size > 0) {
+          type = 'insert';
+          break;
+        }
+      }
+
+      if (!type) {
+        return;
+      }
+
+      const rect = editor.view.dom.getBoundingClientRect();
+      const currentEditorHeight = rect.height;
+      if (!isEditorUpdatedRef.current) {
+        prevEditorHeightRef.current = currentEditorHeight;
+        isEditorUpdatedRef.current = true;
+        return;
+      }
+
+      const prevEditorHeight = prevEditorHeightRef.current;
+      prevEditorHeightRef.current = currentEditorHeight;
+      const diff =
+        type === 'delete'
+          ? currentEditorHeight - prevEditorHeight
+          : prevEditorHeight - currentEditorHeight;
+      if (diff === 0) {
+        return;
+      }
+
+      const monitor = await currentMonitor();
+      if (!monitor) {
+        return;
+      }
+      const scaleFactor = monitor.scaleFactor;
+      const screenHeight = monitor.workArea.size.height;
+
+      const currentWindow = getCurrentWindow();
+      const currentSize = await currentWindow.outerSize();
+      const currentWindowHeight = currentSize.height;
+
+      const maxHeight = Math.floor(screenHeight * 0.75);
+
+      const scaledDiff = diff * scaleFactor;
+      let newHeight = Math.min(
+        maxHeight,
+        currentWindowHeight + (type === 'delete' ? scaledDiff : -scaledDiff)
+      );
+
+      if (newHeight >= maxHeight) {
+        autosize(editor, false);
+        newHeight = maxHeight;
+      } else {
+        editorContent.style.overflowY = 'hidden';
+        bottomDivider.style.opacity = '0';
+        topDivider.style.opacity = '0';
+      }
+
+      const minHeight = 115 * scaleFactor;
+      const isLessThanMinHeight = newHeight < minHeight;
+      if (isLessThanMinHeight) {
+        newHeight = minHeight;
+      }
+
+      await currentWindow.setSize(
+        new PhysicalSize(currentSize.width, newHeight)
+      );
     },
   });
 
@@ -129,14 +318,18 @@ function IndexPage() {
         className="mt-[var(--window-menu-height)] flex h-[calc(100vh-var(--window-menu-height))] flex-col"
         ref={containerRef}
       >
-        <Divider ref={topDividerRef} className="opacity-0" />
+        <Divider ref={topDividerRef} className="opacity-0 transition-opacity" />
 
         <EditorContent
           editor={editor}
-          className="flex grow flex-col overflow-y-auto"
+          ref={editorContentRef}
+          className="flex flex-col overflow-y-auto"
           onScroll={onScroll}
         />
-        <Divider ref={bottomDividerRef} className="opacity-0" />
+        <Divider
+          ref={bottomDividerRef}
+          className="mt-auto opacity-0 transition-opacity"
+        />
         <MenuBar editor={editor} />
       </div>
     </main>

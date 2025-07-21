@@ -30,27 +30,27 @@
   }
 
   h1 {
-    @apply text-2xl mb-1.5 mt-6;
+    @apply mb-1.5 mt-6 text-2xl;
   }
 
   h2 {
-    @apply text-xl mb-1 mt-4;
+    @apply mb-1 mt-4 text-xl;
   }
 
   h3 {
-    @apply text-base mb-1 mt-4;
+    @apply mb-1 mt-4 text-base;
   }
 
   p {
-    @apply text-[15px] leading-snug mb-1.5;
+    @apply mb-1.5 text-[15px] leading-snug;
   }
 
   ul:not([data-type='taskList']) {
-    @apply list-disc mb-2 ps-6.5;
+    @apply ps-6.5 mb-2 list-disc;
   }
 
   ol {
-    @apply list-decimal mb-2 ps-6.5;
+    @apply ps-6.5 mb-2 list-decimal;
 
     li::marker {
       @apply tracking-tighter;
@@ -66,13 +66,13 @@
   }
 
   ul[data-type='taskList'] {
-    @apply ml-0.5 mb-2;
+    @apply mb-2 ml-0.5;
 
     li:has(input[type='checkbox']) {
-      @apply flex items-start mb-2;
+      @apply mb-2 flex items-start;
 
       label {
-        @apply relative mt-[3px] mr-1.5;
+        @apply relative mr-1.5 mt-[3px];
 
         input[type='checkbox'] {
           @apply absolute size-0 opacity-0;
@@ -87,10 +87,10 @@
         }
 
         span {
-          @apply block size-4 border-[1.5px] border-red-500 rounded-md;
+          @apply block size-4 rounded-md border-[1.5px] border-red-500;
 
           &::before {
-            @apply size-3 left-0.5 top-0.5 content-[''] absolute opacity-0;
+            @apply absolute left-0.5 top-0.5 size-3 opacity-0 content-[''];
             -webkit-mask: var(--checklist-checked-icon) center/contain no-repeat;
             mask: var(--checklist-checked-icon) center/contain no-repeat;
           }
@@ -102,7 +102,7 @@
       }
 
       div {
-        @apply flex-1 min-w-0;
+        @apply min-w-0 flex-1;
 
         p {
           @apply mb-0;
@@ -112,11 +112,11 @@
   }
 
   code:not(:where(pre code)) {
-    @apply rounded-md bg-zinc-200 px-[5px] text-zinc-700 font-mono;
+    @apply rounded-md bg-zinc-200 px-[5px] font-mono text-zinc-700;
   }
 
   a {
-    @apply text-red-500 underline cursor-pointer;
+    @apply cursor-pointer text-red-500 underline;
   }
 
   hr {
@@ -124,7 +124,7 @@
   }
 
   blockquote {
-    @apply border-l-2 border-red-500 pl-4 mb-2 mt-2.5 py-1 ml-1.5;
+    @apply mb-2 ml-1.5 mt-2.5 border-l-2 border-red-500 py-1 pl-4;
 
     p {
       @apply mb-0;
@@ -132,19 +132,19 @@
   }
 
   pre {
-    @apply bg-zinc-100 my-3 rounded-xl px-4 py-2.5 mb-2 overflow-x-auto hide-scrollbar;
+    @apply hide-scrollbar my-3 mb-2 overflow-x-auto rounded-xl bg-zinc-100 px-4 py-2.5;
 
     code {
-      @apply p-0 whitespace-pre-wrap text-wrap;
+      @apply whitespace-pre-wrap p-0;
     }
   }
 
   /* Tiptap placeholder */
   p.is-editor-empty:first-child::before {
-    @apply text-gray-400 h-0 float-left pointer-events-none content-[attr(data-placeholder)];
+    @apply pointer-events-none float-left h-0 text-gray-400 content-[attr(data-placeholder)];
   }
 
   p.is-empty::before {
-    @apply text-gray-400 h-0 float-left pointer-events-none content-[attr(data-placeholder)];
+    @apply pointer-events-none float-left h-0 text-gray-400 content-[attr(data-placeholder)];
   }
 }

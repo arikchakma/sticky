@@ -15,7 +15,7 @@
 html,
 body,
 #root {
-  @apply h-full w-full overflow-hidden bg-white selection:bg-red-200/70;
+  @apply h-full w-full overflow-hidden bg-white caret-red-500 accent-red-500 selection:bg-red-200/70;
 }
 
 :not(iframe) {
