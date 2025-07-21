@@ -25,13 +25,18 @@ import { useOnWindowResize } from '~/hooks/use-on-window-resize';
 import { getIsManuallyResized, setIsManuallyResized } from '~/lib/autosize';
 import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'sonner';
+import type { Note } from '@sticky/models';
+import { useInterval } from '~/hooks/use-interval';
+import { useMutation } from '@tanstack/react-query';
+import { useNavigate } from '@tanstack/react-router';
 
 type SkeletonEditorProps = {
+  noteId?: string;
   content?: JSONContent;
 };
 
 export function SkeletonEditor(props: SkeletonEditorProps) {
-  const { content: defaultContent } = props;
+  const { noteId: currentNoteId, content: defaultContent } = props;
 
   const extensions = useMemo(
     () => [
@@ -82,10 +87,10 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       return;
     }
 
-    editorContent.classList.add('overflow-y-scroll', 'grow');
-    editor?.commands?.focus();
+    editorContent.classList.add('overflow-y-scroll');
     shouldStopAutoResizeRef.current = true;
     setIsManuallyResized(true);
+    editor?.commands?.focus();
   });
 
   const handleResize = useCallback(
@@ -155,6 +160,7 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
     []
   );
 
+  const isDirtyRef = useRef<boolean>(false);
   const editor = useEditor({
     extensions,
     content: defaultContent ?? '',
@@ -175,7 +181,36 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       isProgrammaticResizeRef.current = true;
       await handleResize(editor);
     },
+    onUpdate: () => {
+      isDirtyRef.current = true;
+    },
   });
+
+  const { mutate: upsertNote, isPending: isUpsertingNote } = useMutation({
+    mutationFn: (content: JSONContent) => {
+      const details = {
+        id: currentNoteId,
+        content: JSON.stringify(content),
+      };
+
+      return invoke('cmd_upsert_note', {
+        note: details,
+      });
+    },
+  });
+
+  useInterval(() => {
+    if (!isDirtyRef.current || isUpsertingNote) {
+      return;
+    }
+
+    const content = editor.getJSON();
+    upsertNote(content, {
+      onSettled: () => {
+        isDirtyRef.current = false;
+      },
+    });
+  }, 1000);
 
   const bottomDividerRef = useRef<HTMLDivElement>(null);
   const topDividerRef = useRef<HTMLDivElement>(null);
@@ -209,8 +244,36 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       return;
     }
 
+    const newNote = await invoke<Note>('cmd_upsert_note', {
+      note: {
+        model: 'note',
+        content: JSON.stringify({
+          type: 'doc',
+          content: [
+            {
+              type: 'taskList',
+              content: [
+                {
+                  type: 'taskItem',
+                  attrs: {
+                    checked: false,
+                  },
+                  content: [
+                    {
+                      type: 'paragraph',
+                      content: [{ type: 'text', text: 'Mark it as done!!' }],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        }),
+      },
+    });
+
     await invoke('cmd_new_main_window', {
-      url: '/',
+      url: `/${newNote.id}`,
     });
   }, [editor]);
 
@@ -262,6 +325,8 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
     const calculatedHeight = Math.max(MIN_HEIGHT, totalHeight * scaleFactor);
     const newHeight = Math.ceil(Math.min(MAX_HEIGHT, calculatedHeight));
 
+    shouldStopAutoResizeRef.current = false;
+    setIsManuallyResized(false);
     if (hasDoubleClickedRef.current) {
       const x =
         monitor.position.x +
@@ -270,6 +335,7 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
 
       await currentWindow.setPosition(new PhysicalPosition(x, y));
       editor.commands.focus();
+      hasDoubleClickedRef.current = false;
       return;
     }
 
@@ -280,9 +346,8 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
 
     await currentWindow.setSize(new PhysicalSize(currentSize.width, newHeight));
     editor.commands.focus();
-    shouldStopAutoResizeRef.current = false;
-    setIsManuallyResized(false);
     hasDoubleClickedRef.current = true;
+    isProgrammaticResizeRef.current = true;
   }, [editor]);
 
   const handleContentClick = useCallback(
@@ -297,12 +362,63 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
     [editor]
   );
 
+  const navigate = useNavigate();
+  const handleNoteClick = useCallback((note: Note) => {
+    console.log('HANDLE NOTE CLICK', note.id);
+    navigate({
+      to: '/$noteId',
+      params: {
+        noteId: note.id,
+      },
+    });
+  }, []);
+
+  const prevWindowSizeRef = useRef<PhysicalSize | null>(null);
+  const handleOpenChange = useCallback(async (open: boolean) => {
+    const prevWindowSize = prevWindowSizeRef.current;
+
+    const monitor = await currentMonitor();
+    if (!monitor) {
+      return;
+    }
+
+    const scaleFactor = monitor.scaleFactor;
+    const currentWindow = getCurrentWindow();
+    const currentSize = await currentWindow.outerSize();
+    prevWindowSizeRef.current = currentSize;
+
+    const OPEN_HEIGHT = 500 * scaleFactor;
+
+    if (!open) {
+      if (!prevWindowSize) {
+        return;
+      }
+
+      await currentWindow.setSize(prevWindowSize);
+      isProgrammaticResizeRef.current = true;
+      editor.commands.focus();
+      return;
+    }
+
+    const isLessThan500 = currentSize.height < OPEN_HEIGHT;
+    if (!isLessThan500) {
+      return;
+    }
+
+    await currentWindow.setSize(
+      new PhysicalSize(currentSize.width, OPEN_HEIGHT)
+    );
+    isProgrammaticResizeRef.current = true;
+  }, []);
+
   return (
     <main>
       <Header
         ref={headerRef}
         onNewWindow={handleNewWindow}
         onDoubleClick={handleDoubleClick}
+        onNoteClick={handleNoteClick}
+        onOpenChange={handleOpenChange}
       />
 
       <div className="mt-[var(--window-menu-height)] flex h-[calc(100vh-var(--window-menu-height))] flex-col">

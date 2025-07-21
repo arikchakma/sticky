@@ -5,16 +5,12 @@ import { createRoot } from 'react-dom/client';
 // Import the generated route tree
 import { routeTree } from './routeTree.gen';
 
-import { queryClient } from './lib/query-client.ts';
 import { reportWebVitals } from './report-web-vitals.ts';
 import './styles/global.css';
 
 // Create a new router instance
 const router = createRouter({
   routeTree,
-  context: {
-    queryClient,
-  },
 });
 
 // Register the router instance for type safety

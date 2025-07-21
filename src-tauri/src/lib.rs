@@ -162,20 +162,23 @@ pub fn run() {
         panic!("Failed to initialize logger: {}", e);
     });
 
-    tauri::Builder::default()
+    #[allow(unused_mut)]
+    let mut builder = tauri::Builder::default()
         .plugin(
             tauri_plugin_window_state::Builder::new()
-                .skip_initial_state(&format!("{MAIN_WINDOW_PREFIX}0"))
+                // .skip_initial_state(&format!("{MAIN_WINDOW_PREFIX}0"))
                 .build(),
         )
-        .plugin(sticky_models::init())
+        .plugin(sticky_models::plugin::init())
         .setup(|app_handle: &mut App| {
             debug_log!("Setting up Tauri application");
 
             app_handle.manage(AppState::default());
 
             Ok(())
-        })
+        });
+
+    builder
         .invoke_handler(tauri::generate_handler![
             cmd_new_child_window,
             cmd_new_main_window,

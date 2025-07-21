@@ -26,7 +26,10 @@ export const MenuBar = forwardRef<HTMLDivElement, MenuBarProps>(
     });
 
     return (
-      <div ref={ref} className="h-9.5 relative flex shrink-0 items-center p-1">
+      <div
+        ref={ref}
+        className="h-9.5 z-99 relative flex shrink-0 items-center p-1"
+      >
         <div
           className={cn(
             'flex grow items-center justify-center',

@@ -3,26 +3,34 @@ import { forwardRef } from 'react';
 import { Button } from './ui/button';
 import { cn } from '~/utils/classname';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { BrowseDialog, type BrowseDialogProps } from './browse-dialog';
 
 const currentWindow = getCurrentWindow();
 
 type HeaderProps = {
   onNewWindow: () => void;
   onDoubleClick: () => void;
-};
+} & BrowseDialogProps;
 
 export const Header = forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & HeaderProps
 >((props, ref) => {
-  const { className, onNewWindow, onDoubleClick, ...rest } = props;
+  const {
+    className,
+    onNewWindow,
+    onDoubleClick,
+    onNoteClick,
+    onOpenChange,
+    ...rest
+  } = props;
 
   return (
     <header
       {...rest}
       ref={ref}
       className={cn(
-        'fixed left-0 top-0 h-[var(--window-menu-height)] w-full bg-white',
+        'z-99 fixed left-0 top-0 h-[var(--window-menu-height)] w-full select-none bg-transparent',
         className
       )}
     >
@@ -40,8 +48,12 @@ export const Header = forwardRef<
         </div>
 
         <div className="flex items-center gap-2">
+          <BrowseDialog onNoteClick={onNoteClick} onOpenChange={onOpenChange} />
           <Button
-            onClick={onNewWindow}
+            onClick={(e) => {
+              e.stopPropagation();
+              onNewWindow();
+            }}
             variant="ghost"
             size="icon"
             className="size-7 shrink-0 text-zinc-300 transition-colors duration-150 hover:text-zinc-600"
