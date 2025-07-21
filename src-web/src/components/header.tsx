@@ -1,4 +1,3 @@
-import { invoke } from '@tauri-apps/api/core';
 import { PlusIcon } from 'lucide-react';
 import { forwardRef } from 'react';
 import { Button } from './ui/button';
@@ -7,11 +6,16 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 
 const currentWindow = getCurrentWindow();
 
+type HeaderProps = {
+  onNewWindow: () => void;
+  onDoubleClick: () => void;
+};
+
 export const Header = forwardRef<
   HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
+  React.HTMLAttributes<HTMLDivElement> & HeaderProps
 >((props, ref) => {
-  const { className, ...rest } = props;
+  const { className, onNewWindow, onDoubleClick, ...rest } = props;
 
   return (
     <header
@@ -27,6 +31,7 @@ export const Header = forwardRef<
         onMouseDown={() => {
           currentWindow.startDragging();
         }}
+        onDoubleClick={onDoubleClick}
       >
         <div className="pointer-events-none flex items-center gap-2 pl-3.5">
           <TrafficButton />
@@ -36,11 +41,7 @@ export const Header = forwardRef<
 
         <div className="flex items-center gap-2">
           <Button
-            onClick={async () => {
-              invoke('cmd_new_main_window', {
-                url: '/',
-              });
-            }}
+            onClick={onNewWindow}
             variant="ghost"
             size="icon"
             className="size-7 shrink-0 text-zinc-300 transition-colors duration-150 hover:text-zinc-600"

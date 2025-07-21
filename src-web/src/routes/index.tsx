@@ -11,13 +11,17 @@ import { MenuBar } from '~/components/menu-bar/menu-bar';
 import { CodeBlock } from '~/lib/highlighter';
 import { clamp } from '~/utils/number';
 import {
+  availableMonitors,
   currentMonitor,
   getCurrentWindow,
+  LogicalPosition,
+  PhysicalPosition,
   PhysicalSize,
 } from '@tauri-apps/api/window';
 import { getTransactionType } from '~/lib/transaction';
 import { useOnWindowResize } from '~/hooks/use-on-window-resize';
 import { getIsManuallyResized, setIsManuallyResized } from '~/lib/autosize';
+import { invoke } from '@tauri-apps/api/core';
 
 export const Route = createFileRoute('/')({
   component: IndexPage,
@@ -95,6 +99,7 @@ function IndexPage() {
   const headerRef = useRef<HTMLDivElement>(null);
   const menuBarRef = useRef<HTMLDivElement>(null);
   const isProgrammaticResizeRef = useRef<boolean>(false);
+  const hasDoubleClickedRef = useRef<boolean>(false);
 
   useOnWindowResize(() => {
     if (isProgrammaticResizeRef.current) {
@@ -176,6 +181,7 @@ function IndexPage() {
       await currentWindow.setSize(
         new PhysicalSize(currentSize.width, newHeight)
       );
+      hasDoubleClickedRef.current = false;
     },
     []
   );
@@ -188,8 +194,7 @@ function IndexPage() {
       scrollThreshold: 40,
       scrollMargin: 40,
       attributes: {
-        class:
-          'focus:outline-none border-none px-5 pt-2 pb-0 editor-content grow',
+        class: 'focus:outline-none border-none px-5 pt-2 pb-0 editor-content',
       },
     },
     onTransaction: async ({ transaction, editor }) => {
@@ -228,18 +233,113 @@ function IndexPage() {
     topDivider.style.opacity = String(topOpacity);
   };
 
+  const handleNewWindow = useCallback(async () => {
+    await invoke('cmd_new_main_window', {
+      url: '/',
+    });
+  }, []);
+
+  const handleDoubleClick = useCallback(async () => {
+    const header = headerRef.current;
+    const menuBar = menuBarRef.current;
+    const editorContent = editorContentRef.current;
+    const topDivider = topDividerRef.current;
+    const bottomDivider = bottomDividerRef.current;
+    if (
+      !header ||
+      !menuBar ||
+      !editorContent ||
+      !topDivider ||
+      !bottomDivider ||
+      !editor
+    ) {
+      return;
+    }
+
+    const rect = editor.view.dom.getBoundingClientRect();
+    const editorHeight = rect.height;
+    const menuBarHeight = menuBar.getBoundingClientRect().height;
+    const headerHeight = header.getBoundingClientRect().height;
+    const topDividerHeight = topDivider.getBoundingClientRect().height;
+    const bottomDividerHeight = bottomDivider.getBoundingClientRect().height;
+
+    const totalHeight =
+      editorHeight +
+      menuBarHeight +
+      headerHeight +
+      topDividerHeight +
+      bottomDividerHeight;
+
+    const monitor = await currentMonitor();
+    if (!monitor) {
+      return;
+    }
+
+    const scaleFactor = monitor.scaleFactor;
+    const screenHeight = monitor.workArea.size.height;
+
+    const currentWindow = getCurrentWindow();
+    const currentSize = await currentWindow.outerSize();
+
+    const MAX_HEIGHT = Math.floor(screenHeight * 0.75);
+    const MIN_HEIGHT = 115 * scaleFactor;
+
+    const calculatedHeight = Math.max(MIN_HEIGHT, totalHeight * scaleFactor);
+    const newHeight = Math.ceil(Math.min(MAX_HEIGHT, calculatedHeight));
+
+    if (hasDoubleClickedRef.current) {
+      const x =
+        monitor.position.x +
+        (monitor.size.width - currentSize.width - 40 * scaleFactor);
+      const y = monitor.position.y + 100 * scaleFactor;
+
+      await currentWindow.setPosition(new PhysicalPosition(x, y));
+      editor.commands.focus();
+      return;
+    }
+
+    const hasCrossedMaxHeight = calculatedHeight >= MAX_HEIGHT;
+    editorContent.classList.toggle('overflow-y-scroll', hasCrossedMaxHeight);
+    bottomDivider.style.opacity = '0';
+    topDivider.style.opacity = '0';
+
+    await currentWindow.setSize(new PhysicalSize(currentSize.width, newHeight));
+    editor.commands.focus();
+    shouldStopAutoResizeRef.current = false;
+    setIsManuallyResized(false);
+    hasDoubleClickedRef.current = true;
+  }, [editor]);
+
+  const handleContentClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      const target = e.target instanceof HTMLElement ? e.target : null;
+      if (!target || target.id !== 'editor-content') {
+        return;
+      }
+
+      editor.commands.focus();
+    },
+    [editor]
+  );
+
   return (
     <main>
-      <Header ref={headerRef} />
+      <Header
+        ref={headerRef}
+        onNewWindow={handleNewWindow}
+        onDoubleClick={handleDoubleClick}
+      />
 
       <div className="mt-[var(--window-menu-height)] flex h-[calc(100vh-var(--window-menu-height))] flex-col">
         <Divider ref={topDividerRef} className="opacity-0 transition-opacity" />
 
         <EditorContent
+          id="editor-content"
           editor={editor}
           ref={editorContentRef}
-          className="flex flex-col overflow-y-scroll"
+          className="flex grow flex-col overflow-y-scroll"
           onScroll={onScroll}
+          onClick={handleContentClick}
         />
         <Divider
           ref={bottomDividerRef}
