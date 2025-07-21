@@ -1,0 +1,9 @@
+-- Add migration SQL here
+CREATE TABLE
+  IF NOT EXISTS notes (
+    model TEXT NOT NULL DEFAULT 'note',
+    id TEXT PRIMARY KEY,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );

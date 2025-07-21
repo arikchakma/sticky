@@ -168,7 +168,7 @@ pub fn run() {
                 .skip_initial_state(&format!("{MAIN_WINDOW_PREFIX}0"))
                 .build(),
         )
-        .plugin(sticky_models::plugin::Builder::new().build())
+        .plugin(sticky_models::init())
         .setup(|app_handle: &mut App| {
             debug_log!("Setting up Tauri application");
 
