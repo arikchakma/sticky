@@ -3,6 +3,9 @@ import { PlusIcon } from 'lucide-react';
 import { forwardRef } from 'react';
 import { Button } from './ui/button';
 import { cn } from '~/utils/classname';
+import { getCurrentWindow } from '@tauri-apps/api/window';
+
+const currentWindow = getCurrentWindow();
 
 export const Header = forwardRef<
   HTMLDivElement,
@@ -21,9 +24,15 @@ export const Header = forwardRef<
     >
       <div
         className="flex h-full items-center justify-between pr-1"
-        data-tauri-drag-region
+        onMouseDown={() => {
+          currentWindow.startDragging();
+        }}
       >
-        <div />
+        <div className="pointer-events-none flex items-center gap-2 pl-3.5">
+          <TrafficButton />
+          <TrafficButton />
+          <TrafficButton />
+        </div>
 
         <div className="flex items-center gap-2">
           <Button
@@ -45,3 +54,9 @@ export const Header = forwardRef<
 });
 
 Header.displayName = 'Header';
+
+type TrafficButtonProps = {};
+
+function TrafficButton(_: TrafficButtonProps) {
+  return <div className="h-3 w-3 rounded-full bg-gray-300" />;
+}

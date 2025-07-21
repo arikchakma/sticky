@@ -16,6 +16,8 @@ import {
   PhysicalSize,
 } from '@tauri-apps/api/window';
 import { getTransactionType } from '~/lib/transaction';
+import { useOnWindowResize } from '~/hooks/use-on-window-resize';
+import { getIsManuallyResized, setIsManuallyResized } from '~/lib/autosize';
 
 export const Route = createFileRoute('/')({
   component: IndexPage,
@@ -88,77 +90,103 @@ function IndexPage() {
     []
   );
 
-  const shouldStopAutoResizeRef = useRef<boolean>(false);
+  const shouldStopAutoResizeRef = useRef<boolean>(getIsManuallyResized());
   const editorContentRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const menuBarRef = useRef<HTMLDivElement>(null);
+  const isProgrammaticResizeRef = useRef<boolean>(false);
 
-  const handleResize = useCallback(async (editor: Editor) => {
-    const header = headerRef.current;
-    const menuBar = menuBarRef.current;
+  useOnWindowResize(() => {
+    if (isProgrammaticResizeRef.current) {
+      isProgrammaticResizeRef.current = false;
+      return;
+    }
+
     const editorContent = editorContentRef.current;
-    const topDivider = topDividerRef.current;
-    const bottomDivider = bottomDividerRef.current;
-    if (
-      !header ||
-      !menuBar ||
-      !editorContent ||
-      !topDivider ||
-      !bottomDivider
-    ) {
+    const isDisabled = shouldStopAutoResizeRef.current;
+    if (!editorContent || isDisabled) {
       return;
     }
 
-    const shouldStop = shouldStopAutoResizeRef.current;
-    if (shouldStop) {
-      return;
-    }
+    editorContent.classList.add('overflow-y-scroll', 'grow');
+    editor?.commands?.focus();
+    shouldStopAutoResizeRef.current = true;
+    setIsManuallyResized(true);
+  });
 
-    const rect = editor.view.dom.getBoundingClientRect();
-    const editorHeight = rect.height;
-    const menuBarHeight = menuBar.getBoundingClientRect().height;
-    const headerHeight = header.getBoundingClientRect().height;
-    const topDividerHeight = topDivider.getBoundingClientRect().height;
-    const bottomDividerHeight = bottomDivider.getBoundingClientRect().height;
+  const handleResize = useCallback(
+    async (editor: Editor, force: boolean = false) => {
+      const header = headerRef.current;
+      const menuBar = menuBarRef.current;
+      const editorContent = editorContentRef.current;
+      const topDivider = topDividerRef.current;
+      const bottomDivider = bottomDividerRef.current;
+      if (
+        !header ||
+        !menuBar ||
+        !editorContent ||
+        !topDivider ||
+        !bottomDivider
+      ) {
+        return;
+      }
 
-    const totalHeight =
-      editorHeight +
-      menuBarHeight +
-      headerHeight +
-      topDividerHeight +
-      bottomDividerHeight;
+      const shouldStop = shouldStopAutoResizeRef.current;
+      if (shouldStop && !force) {
+        return;
+      }
 
-    const monitor = await currentMonitor();
-    if (!monitor) {
-      return;
-    }
-    const scaleFactor = monitor.scaleFactor;
-    const screenHeight = monitor.workArea.size.height;
+      shouldStopAutoResizeRef.current = false;
 
-    const currentWindow = getCurrentWindow();
-    const currentSize = await currentWindow.outerSize();
+      const rect = editor.view.dom.getBoundingClientRect();
+      const editorHeight = rect.height;
+      const menuBarHeight = menuBar.getBoundingClientRect().height;
+      const headerHeight = header.getBoundingClientRect().height;
+      const topDividerHeight = topDivider.getBoundingClientRect().height;
+      const bottomDividerHeight = bottomDivider.getBoundingClientRect().height;
 
-    const MAX_HEIGHT = Math.floor(screenHeight * 0.75);
-    const MIN_HEIGHT = 115 * scaleFactor;
+      const totalHeight =
+        editorHeight +
+        menuBarHeight +
+        headerHeight +
+        topDividerHeight +
+        bottomDividerHeight;
 
-    const calculatedHeight = Math.max(MIN_HEIGHT, totalHeight * scaleFactor);
-    const newHeight = Math.ceil(Math.min(MAX_HEIGHT, calculatedHeight));
+      const monitor = await currentMonitor();
+      if (!monitor) {
+        return;
+      }
+      const scaleFactor = monitor.scaleFactor;
+      const screenHeight = monitor.workArea.size.height;
 
-    const hasCrossedMaxHeight = calculatedHeight >= MAX_HEIGHT;
-    editorContent.classList.toggle('overflow-y-scroll', hasCrossedMaxHeight);
-    bottomDivider.style.opacity = '0';
-    topDivider.style.opacity = '0';
+      const currentWindow = getCurrentWindow();
+      const currentSize = await currentWindow.outerSize();
 
-    await currentWindow.setSize(new PhysicalSize(currentSize.width, newHeight));
-  }, []);
+      const MAX_HEIGHT = Math.floor(screenHeight * 0.75);
+      const MIN_HEIGHT = 115 * scaleFactor;
+
+      const calculatedHeight = Math.max(MIN_HEIGHT, totalHeight * scaleFactor);
+      const newHeight = Math.ceil(Math.min(MAX_HEIGHT, calculatedHeight));
+
+      const hasCrossedMaxHeight = calculatedHeight >= MAX_HEIGHT;
+      editorContent.classList.toggle('overflow-y-scroll', hasCrossedMaxHeight);
+      bottomDivider.style.opacity = '0';
+      topDivider.style.opacity = '0';
+
+      await currentWindow.setSize(
+        new PhysicalSize(currentSize.width, newHeight)
+      );
+    },
+    []
+  );
 
   const editor = useEditor({
     extensions,
     content,
     autofocus: 'end',
     editorProps: {
-      scrollThreshold: 20,
-      scrollMargin: 20,
+      scrollThreshold: 40,
+      scrollMargin: 40,
       attributes: {
         class:
           'focus:outline-none border-none px-5 pt-2 pb-0 editor-content grow',
@@ -170,6 +198,7 @@ function IndexPage() {
         return;
       }
 
+      isProgrammaticResizeRef.current = true;
       await handleResize(editor);
     },
   });
@@ -209,7 +238,7 @@ function IndexPage() {
         <EditorContent
           editor={editor}
           ref={editorContentRef}
-          className="flex flex-col"
+          className="flex flex-col overflow-y-scroll"
           onScroll={onScroll}
         />
         <Divider
