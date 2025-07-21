@@ -29,6 +29,9 @@ fn position_traffic_lights(ns_window_handle: UnsafeWindowHandle, x: f64, y: f64,
             ns_window.standardWindowButton_(NSWindowButton::NSWindowMiniaturizeButton);
         let zoom = ns_window.standardWindowButton_(NSWindowButton::NSWindowZoomButton);
 
+        let _: () = msg_send![miniaturize, setEnabled: false];
+        let _: () = msg_send![zoom, setEnabled: false];
+
         let title_bar_container_view = close.superview().superview();
 
         let close_rect: NSRect = msg_send![close, frame];
