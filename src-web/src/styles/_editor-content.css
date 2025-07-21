@@ -120,7 +120,7 @@
   }
 
   hr {
-    @apply my-4 border-zinc-300;
+    @apply my-4 rounded border border-zinc-300;
   }
 
   blockquote {
