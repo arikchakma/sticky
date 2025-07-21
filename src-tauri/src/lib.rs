@@ -1,7 +1,11 @@
 use flexi_logger::LogSpecification;
 use flexi_logger::{Age, Cleanup, Criterion, FileSpec, Logger, Naming};
 use log::{error, warn};
-use tauri::{App, AppHandle, Manager, RunEvent, WebviewWindow, WindowEvent};
+use sticky_models::models::Note;
+use sticky_models::queries::{get_note, list_notes, upsert_note};
+use tauri::{
+    App, AppHandle, Manager, RunEvent, Runtime, WebviewWindow, WindowEvent,
+};
 use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
 
 #[cfg(target_os = "macos")]
@@ -36,9 +40,31 @@ async fn cmd_new_main_window(
     url: &str,
     position: Option<(f64, f64)>,
 ) -> Result<(), String> {
-    println!("Creating main window at position: {:?}", position);
     window::create_main_window(&app_handle, url, position);
     Ok(())
+}
+
+#[tauri::command]
+async fn cmd_list_notes<R: Runtime>(
+    app_handle: AppHandle<R>,
+) -> Result<Vec<Note>, String> {
+    list_notes(&app_handle).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn cmd_get_note<R: Runtime>(
+    id: String,
+    app_handle: AppHandle<R>,
+) -> Result<Note, String> {
+    get_note(&app_handle, &id).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn cmd_upsert_note<R: Runtime>(
+    note: Note,
+    app_handle: AppHandle<R>,
+) -> Result<Note, String> {
+    upsert_note(&app_handle, note).await.map_err(|e| e.to_string())
 }
 
 // Custom colored format for logging
@@ -51,13 +77,14 @@ pub fn custom_colored_format(
     now: &mut DeferredNow,
     record: &Record,
 ) -> IoResult<()> {
-    let (level_color, level_str, msg_color, msg_fg_highlight) = match record.level() {
-        Level::Error => ("\x1b[38;5;196m", "ERROR", "\x1b[38;5;196m", true),
-        Level::Warn => ("\x1b[38;5;226m", "WARN ", "\x1b[38;5;226m", true),
-        Level::Info => ("\x1b[38;5;51m", "INFO ", "\x1b[38;5;15m", false),
-        Level::Debug => ("\x1b[38;5;27m", "DEBUG", "\x1b[38;5;15m", false),
-        Level::Trace => ("\x1b[38;5;201m", "TRACE", "\x1b[38;5;15m", false),
-    };
+    let (level_color, level_str, msg_color, msg_fg_highlight) =
+        match record.level() {
+            Level::Error => ("\x1b[38;5;196m", "ERROR", "\x1b[38;5;196m", true),
+            Level::Warn => ("\x1b[38;5;226m", "WARN ", "\x1b[38;5;226m", true),
+            Level::Info => ("\x1b[38;5;51m", "INFO ", "\x1b[38;5;15m", false),
+            Level::Debug => ("\x1b[38;5;27m", "DEBUG", "\x1b[38;5;15m", false),
+            Level::Trace => ("\x1b[38;5;201m", "TRACE", "\x1b[38;5;15m", false),
+        };
 
     let timestamp_color = "\x1b[38;5;15m";
     let module_color = "\x1b[38;5;250m";
@@ -141,6 +168,7 @@ pub fn run() {
                 .skip_initial_state(&format!("{MAIN_WINDOW_PREFIX}0"))
                 .build(),
         )
+        .plugin(sticky_models::plugin::Builder::new().build())
         .setup(|app_handle: &mut App| {
             debug_log!("Setting up Tauri application");
 
@@ -151,6 +179,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             cmd_new_child_window,
             cmd_new_main_window,
+            cmd_list_notes,
+            cmd_get_note,
+            cmd_upsert_note
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
@@ -166,7 +197,9 @@ pub fn run() {
                             Ok(_) => {
                                 debug_log!("Restored window size successfully");
                             }
-                            Err(e) => error!("Failed to restore window size: {:?}", e),
+                            Err(e) => {
+                                error!("Failed to restore window size: {:?}", e)
+                            }
                         }
                     });
                 }
@@ -185,18 +218,24 @@ pub fn run() {
                     ..
                 } => {
                     debug_log!("Window close requested: {}", label);
-                    let is_first_main_window = label == format!("{MAIN_WINDOW_PREFIX}0");
+                    let is_first_main_window =
+                        label == format!("{MAIN_WINDOW_PREFIX}0");
                     if !label.starts_with(window::OTHER_WINDOW_PREFIX)
                         && !(app_handle.webview_windows().len() > 1)
                         && is_first_main_window
                     {
-                        if let Err(e) = app_handle.save_window_state(StateFlags::all()) {
+                        if let Err(e) =
+                            app_handle.save_window_state(StateFlags::all())
+                        {
                             warn!("Failed to save window state {e:?}");
                         } else {
                             debug_log!("Window state saved successfully");
                         };
                     } else {
-                        debug_log!("Skipping window state save for label: {}", label);
+                        debug_log!(
+                            "Skipping window state save for label: {}",
+                            label
+                        );
                     }
                 }
                 _ => {}

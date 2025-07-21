@@ -53,7 +53,6 @@ pub async fn upsert_note<R: Runtime>(app_handle: &AppHandle<R>, note: Note) -> R
             NoteIden::Id,
             NoteIden::CreatedAt,
             NoteIden::UpdatedAt,
-            NoteIden::Title,
             NoteIden::Content,
         ])
         .values_panic([
@@ -64,7 +63,7 @@ pub async fn upsert_note<R: Runtime>(app_handle: &AppHandle<R>, note: Note) -> R
         ])
         .on_conflict(
             OnConflict::column(NoteIden::Id)
-                .update_columns([NoteIden::UpdatedAt, NoteIden::Title, NoteIden::Content])
+                .update_columns([NoteIden::UpdatedAt, NoteIden::Content])
                 .values([(NoteIden::UpdatedAt, CurrentTimestamp.into())])
                 .to_owned(),
         )

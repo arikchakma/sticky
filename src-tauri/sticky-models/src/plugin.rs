@@ -33,7 +33,7 @@ impl Builder {
     }
 
     pub fn build<R: Runtime>(&self) -> TauriPlugin<R, Option<PluginConfig>> {
-        plugin::Builder::<R, Option<PluginConfig>>::new("time_models")
+        plugin::Builder::<R, Option<PluginConfig>>::new("sticky_models")
             .setup(|app, _api| {
                 let app_path = app.path().app_data_dir().unwrap();
                 let divider = "-".repeat(100);

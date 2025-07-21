@@ -14,7 +14,6 @@ pub struct Note {
     pub id: String,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
-    pub title: String,
     pub content: String,
 }
 
@@ -26,7 +25,6 @@ pub enum NoteIden {
     Id,
     CreatedAt,
     UpdatedAt,
-    Title,
     Content,
 }
 
@@ -39,16 +37,14 @@ impl<'s> TryFrom<&Row<'s>> for Note {
             model: r.get("model")?,
             created_at: r.get("created_at")?,
             updated_at: r.get("updated_at")?,
-            title: r.get("title")?,
             content: r.get("content")?,
         })
     }
 }
 
 impl Note {
-    pub fn new(title: String, content: String) -> Self {
+    pub fn new(content: String) -> Self {
         Self {
-            title,
             content,
             ..Default::default()
         }

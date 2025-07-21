@@ -4495,6 +4495,7 @@ dependencies = [
  "log",
  "objc",
  "rand 0.9.2",
+ "sticky-models",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",

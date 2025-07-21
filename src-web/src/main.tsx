@@ -1,6 +1,6 @@
 import { RouterProvider, createRouter } from '@tanstack/react-router';
 import { StrictMode } from 'react';
-import ReactDOM from 'react-dom/client';
+import { createRoot } from 'react-dom/client';
 
 // Import the generated route tree
 import { routeTree } from './routeTree.gen';
@@ -15,10 +15,6 @@ const router = createRouter({
   context: {
     queryClient,
   },
-  defaultPreload: 'intent',
-  scrollRestoration: true,
-  defaultStructuralSharing: true,
-  defaultPreloadStaleTime: 0,
 });
 
 // Register the router instance for type safety
@@ -30,7 +26,7 @@ declare module '@tanstack/react-router' {
 
 const rootElement = document.getElementById('app');
 if (rootElement && !rootElement.innerHTML) {
-  const root = ReactDOM.createRoot(rootElement);
+  const root = createRoot(rootElement);
   root.render(
     <StrictMode>
       <RouterProvider router={router} />

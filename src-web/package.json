@@ -18,6 +18,7 @@
     "@tanstack/router-plugin": "^1.121.2",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-opener": "^2",
+    "@sticky/models": "workspace:*",
     "@tiptap/extension-character-count": "^3.0.7",
     "@tiptap/extension-code-block": "^3.0.7",
     "@tiptap/extension-list": "^3.0.7",

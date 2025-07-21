@@ -24,8 +24,13 @@ importers:
         specifier: ~5.6.2
         version: 5.6.3
 
+  src-tauri/sticky-models: {}
+
   src-web:
     dependencies:
+      '@sticky/models':
+        specifier: workspace:*
+        version: link:../src-tauri/sticky-models
       '@tailwindcss/vite':
         specifier: ^4.1.11
         version: 4.1.11(vite@6.3.5(@types/node@24.0.15)(jiti@2.4.2)(lightningcss@1.30.1)(tsx@4.20.3))
