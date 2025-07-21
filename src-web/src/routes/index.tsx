@@ -264,7 +264,7 @@ function IndexPage() {
       );
 
       if (newHeight >= maxHeight) {
-        autosize(editor, false);
+        autosize(editor, true);
         newHeight = maxHeight;
       } else {
         editorContent.style.overflowY = 'hidden';
