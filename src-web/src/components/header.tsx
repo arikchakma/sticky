@@ -1,10 +1,24 @@
 import { invoke } from '@tauri-apps/api/core';
 import { PlusIcon } from 'lucide-react';
+import { forwardRef } from 'react';
 import { Button } from './ui/button';
+import { cn } from '~/utils/classname';
 
-export function Header() {
+export const Header = forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>((props, ref) => {
+  const { className, ...rest } = props;
+
   return (
-    <header className="fixed left-0 top-0 h-[var(--window-menu-height)] w-full bg-white">
+    <header
+      {...rest}
+      ref={ref}
+      className={cn(
+        'fixed left-0 top-0 h-[var(--window-menu-height)] w-full bg-white',
+        className
+      )}
+    >
       <div
         className="flex h-full items-center justify-between pr-1"
         data-tauri-drag-region
@@ -28,4 +42,6 @@ export function Header() {
       </div>
     </header>
   );
-}
+});
+
+Header.displayName = 'Header';

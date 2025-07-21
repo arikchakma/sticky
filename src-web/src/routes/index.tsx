@@ -4,7 +4,7 @@ import { ListKit } from '@tiptap/extension-list';
 import { Placeholder } from '@tiptap/extensions/placeholder';
 import { Editor, EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { Divider } from '~/components/divider';
 import { Header } from '~/components/header';
 import { MenuBar } from '~/components/menu-bar/menu-bar';
@@ -15,11 +15,7 @@ import {
   getCurrentWindow,
   PhysicalSize,
 } from '@tauri-apps/api/window';
-import { ReplaceAroundStep, ReplaceStep, Step } from '@tiptap/pm/transform';
-
-function isReplaceStep(step: Step) {
-  return step instanceof ReplaceStep || step instanceof ReplaceAroundStep;
-}
+import { getTransactionType } from '~/lib/transaction';
 
 export const Route = createFileRoute('/')({
   component: IndexPage,
@@ -61,51 +57,6 @@ console.log("Visit site:", URL); // link-like string
 // + Added line (simulated diff inserted)</code></pre>
 `;
 
-export function useMonitorSwitchDetector(
-  onMonitorChange: (monitorName: string | null, scaleFactor: number) => void
-) {
-  const prevMonitorNameRef = useRef<string | null>(null);
-  const prevScaleFactorRef = useRef<number | null>(null);
-
-  const checkMonitor = useCallback(async () => {
-    console.log('🔄 Checking monitor');
-
-    const monitor = await currentMonitor();
-    if (!monitor) return;
-
-    const { name, scaleFactor } = monitor;
-
-    const prevName = prevMonitorNameRef.current;
-    const prevScale = prevScaleFactorRef.current;
-
-    const monitorChanged = prevName !== null && name !== prevName;
-    const scaleChanged = prevScale !== null && scaleFactor !== prevScale;
-
-    if (monitorChanged || scaleChanged) {
-      onMonitorChange(name, scaleFactor);
-    }
-
-    prevMonitorNameRef.current = name;
-    prevScaleFactorRef.current = scaleFactor;
-  }, [onMonitorChange]);
-
-  useEffect(() => {
-    (async () => {
-      const monitor = await currentMonitor();
-      if (monitor) {
-        prevMonitorNameRef.current = monitor.name;
-        prevScaleFactorRef.current = monitor.scaleFactor;
-      }
-    })();
-
-    const unlisten = getCurrentWindow().onResized(checkMonitor);
-
-    return () => {
-      unlisten.then((fn) => fn());
-    };
-  }, [checkMonitor]);
-}
-
 function IndexPage() {
   const extensions = useMemo(
     () => [
@@ -138,31 +89,72 @@ function IndexPage() {
   );
 
   const shouldStopAutoResizeRef = useRef<boolean>(false);
-  useMonitorSwitchDetector(() => {
-    autosize(editor);
-  });
-
-  const prevEditorHeightRef = useRef<number>(0);
-  const isEditorUpdatedRef = useRef<boolean>(false);
   const editorContentRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const menuBarRef = useRef<HTMLDivElement>(null);
 
-  const autosize = useCallback((editor: Editor, shouldStop: boolean = true) => {
+  const handleResize = useCallback(async (editor: Editor) => {
+    const header = headerRef.current;
+    const menuBar = menuBarRef.current;
     const editorContent = editorContentRef.current;
     const topDivider = topDividerRef.current;
     const bottomDivider = bottomDividerRef.current;
-    if (!editorContent || !topDivider || !bottomDivider) {
+    if (
+      !header ||
+      !menuBar ||
+      !editorContent ||
+      !topDivider ||
+      !bottomDivider
+    ) {
       return;
     }
 
-    editorContent.style.overflowY = 'scroll';
-    editorContent.style.flexGrow = '1';
-    editor?.commands?.focus();
-    shouldStopAutoResizeRef.current = shouldStop;
+    const shouldStop = shouldStopAutoResizeRef.current;
+    if (shouldStop) {
+      return;
+    }
+
+    const rect = editor.view.dom.getBoundingClientRect();
+    const editorHeight = rect.height;
+    const menuBarHeight = menuBar.getBoundingClientRect().height;
+    const headerHeight = header.getBoundingClientRect().height;
+    const topDividerHeight = topDivider.getBoundingClientRect().height;
+    const bottomDividerHeight = bottomDivider.getBoundingClientRect().height;
+
+    const totalHeight =
+      editorHeight +
+      menuBarHeight +
+      headerHeight +
+      topDividerHeight +
+      bottomDividerHeight;
+
+    const monitor = await currentMonitor();
+    if (!monitor) {
+      return;
+    }
+    const scaleFactor = monitor.scaleFactor;
+    const screenHeight = monitor.workArea.size.height;
+
+    const currentWindow = getCurrentWindow();
+    const currentSize = await currentWindow.outerSize();
+
+    const MAX_HEIGHT = Math.floor(screenHeight * 0.75);
+    const MIN_HEIGHT = 115 * scaleFactor;
+
+    const calculatedHeight = Math.max(MIN_HEIGHT, totalHeight * scaleFactor);
+    const newHeight = Math.ceil(Math.min(MAX_HEIGHT, calculatedHeight));
+
+    const hasCrossedMaxHeight = calculatedHeight >= MAX_HEIGHT;
+    editorContent.classList.toggle('overflow-y-scroll', hasCrossedMaxHeight);
+    bottomDivider.style.opacity = '0';
+    topDivider.style.opacity = '0';
+
+    await currentWindow.setSize(new PhysicalSize(currentSize.width, newHeight));
   }, []);
 
   const editor = useEditor({
     extensions,
-    content: '',
+    content,
     autofocus: 'end',
     editorProps: {
       scrollThreshold: 20,
@@ -172,121 +164,18 @@ function IndexPage() {
           'focus:outline-none border-none px-5 pt-2 pb-0 editor-content grow',
       },
     },
-    onCreate: ({ editor }) => {
-      if (isEditorUpdatedRef.current) {
-        return;
-      }
-
-      const rect = editor.view.dom.getBoundingClientRect();
-      const currentEditorHeight = rect.height;
-
-      if (currentEditorHeight > 115) {
-        autosize(editor);
-        return;
-      }
-
-      prevEditorHeightRef.current = currentEditorHeight;
-      isEditorUpdatedRef.current = true;
-    },
-    onTransaction: async ({ transaction }) => {
-      const editorContent = editorContentRef.current;
-      const topDivider = topDividerRef.current;
-      const bottomDivider = bottomDividerRef.current;
-      if (!editorContent || !topDivider || !bottomDivider) {
-        return;
-      }
-
-      const shouldStop = shouldStopAutoResizeRef.current;
-      if (shouldStop) {
-        return;
-      }
-
-      let type: 'delete' | 'insert' | null = null;
-      for (const step of transaction.steps) {
-        if (!isReplaceStep(step)) {
-          continue;
-        }
-
-        const slice = step.slice;
-        if (!slice) {
-          continue;
-        }
-
-        const content = slice.content;
-        if (content.size === 0) {
-          type = 'delete';
-          break;
-        } else if (content.size > 0) {
-          type = 'insert';
-          break;
-        }
-      }
-
+    onTransaction: async ({ transaction, editor }) => {
+      const type = getTransactionType(transaction);
       if (!type) {
         return;
       }
 
-      const rect = editor.view.dom.getBoundingClientRect();
-      const currentEditorHeight = rect.height;
-      if (!isEditorUpdatedRef.current) {
-        prevEditorHeightRef.current = currentEditorHeight;
-        isEditorUpdatedRef.current = true;
-        return;
-      }
-
-      const prevEditorHeight = prevEditorHeightRef.current;
-      prevEditorHeightRef.current = currentEditorHeight;
-      const diff =
-        type === 'delete'
-          ? currentEditorHeight - prevEditorHeight
-          : prevEditorHeight - currentEditorHeight;
-      if (diff === 0) {
-        return;
-      }
-
-      const monitor = await currentMonitor();
-      if (!monitor) {
-        return;
-      }
-      const scaleFactor = monitor.scaleFactor;
-      const screenHeight = monitor.workArea.size.height;
-
-      const currentWindow = getCurrentWindow();
-      const currentSize = await currentWindow.outerSize();
-      const currentWindowHeight = currentSize.height;
-
-      const maxHeight = Math.floor(screenHeight * 0.75);
-
-      const scaledDiff = diff * scaleFactor;
-      let newHeight = Math.min(
-        maxHeight,
-        currentWindowHeight + (type === 'delete' ? scaledDiff : -scaledDiff)
-      );
-
-      if (newHeight >= maxHeight) {
-        autosize(editor, true);
-        newHeight = maxHeight;
-      } else {
-        editorContent.style.overflowY = 'hidden';
-        bottomDivider.style.opacity = '0';
-        topDivider.style.opacity = '0';
-      }
-
-      const minHeight = 115 * scaleFactor;
-      const isLessThanMinHeight = newHeight < minHeight;
-      if (isLessThanMinHeight) {
-        newHeight = minHeight;
-      }
-
-      await currentWindow.setSize(
-        new PhysicalSize(currentSize.width, newHeight)
-      );
+      await handleResize(editor);
     },
   });
 
   const bottomDividerRef = useRef<HTMLDivElement>(null);
   const topDividerRef = useRef<HTMLDivElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   const onScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const bottomDivider = bottomDividerRef.current;
@@ -312,25 +201,22 @@ function IndexPage() {
 
   return (
     <main>
-      <Header />
+      <Header ref={headerRef} />
 
-      <div
-        className="mt-[var(--window-menu-height)] flex h-[calc(100vh-var(--window-menu-height))] flex-col"
-        ref={containerRef}
-      >
+      <div className="mt-[var(--window-menu-height)] flex h-[calc(100vh-var(--window-menu-height))] flex-col">
         <Divider ref={topDividerRef} className="opacity-0 transition-opacity" />
 
         <EditorContent
           editor={editor}
           ref={editorContentRef}
-          className="flex flex-col overflow-y-auto"
+          className="flex flex-col"
           onScroll={onScroll}
         />
         <Divider
           ref={bottomDividerRef}
           className="mt-auto opacity-0 transition-opacity"
         />
-        <MenuBar editor={editor} />
+        <MenuBar ref={menuBarRef} editor={editor} />
       </div>
     </main>
   );
