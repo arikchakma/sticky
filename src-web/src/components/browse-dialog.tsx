@@ -16,26 +16,41 @@ import type { JSONContent } from '@tiptap/react';
 import { DateTime } from 'luxon';
 import { useCallback, useMemo, useState } from 'react';
 import type { Note } from '@sticky/models';
+import { cn } from '~/utils/classname';
 
 export type BrowseDialogProps = {
+  activeNoteId?: string;
   onNoteClick?: (note: Note) => void;
   onOpenChange?: (open: boolean) => void;
 };
 
 export function BrowseDialog(props: BrowseDialogProps) {
-  const { onNoteClick, onOpenChange } = props;
+  const { activeNoteId, onNoteClick, onOpenChange } = props;
 
   const [search, setSearch] = useState('');
   const [isOpen, setIsOpen] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState<number | null>(0);
 
   const { data: notes, isLoading: isLoadingNotes } = useQuery({
     ...listNotesOptions(),
     select: (data) => {
-      return data.map((note) => {
-        const doc = JSON.parse(note.content) as JSONContent;
-        const title = getTitle(doc) || 'Untitled';
-        return { ...note, title };
-      });
+      return data
+        .map((note) => {
+          const doc = JSON.parse(note.content) as JSONContent;
+          const title = getTitle(doc) || 'Untitled';
+          return { ...note, title };
+        })
+        .sort((a, b) => {
+          if (a.id === activeNoteId) {
+            return -1;
+          }
+
+          if (b.id === activeNoteId) {
+            return 1;
+          }
+
+          return 0;
+        });
     },
   });
 
@@ -49,13 +64,63 @@ export function BrowseDialog(props: BrowseDialogProps) {
 
   const handleOnOpenChange = useCallback(async (open: boolean) => {
     setSearch('');
+    setFocusedIndex(0);
     setIsOpen(open);
     onOpenChange?.(open);
   }, []);
 
   const handleNoteClick = useCallback((note: Note) => {
     onNoteClick?.(note);
+    setIsOpen(false);
   }, []);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      const key = e.key;
+      const allowedKeys = ['ArrowDown', 'ArrowUp', 'Enter'];
+      if (!allowedKeys.includes(key)) {
+        return;
+      }
+
+      e.preventDefault();
+
+      const maxIndex = filteredNotes?.length ?? 0;
+      if (key === 'ArrowDown') {
+        setFocusedIndex((prev) => {
+          if (prev === null) {
+            return 0;
+          }
+
+          if (prev === maxIndex - 1) {
+            return 0;
+          }
+
+          return prev + 1;
+        });
+      } else if (key === 'ArrowUp') {
+        setFocusedIndex((prev) => {
+          if (prev === null) {
+            return 0;
+          }
+
+          if (prev === 0) {
+            return maxIndex - 1;
+          }
+
+          return prev - 1;
+        });
+      } else if (key === 'Enter') {
+        const note = filteredNotes?.[focusedIndex ?? 0];
+        if (!note) {
+          return;
+        }
+
+        handleNoteClick(note);
+        setIsOpen(false);
+      }
+    },
+    [filteredNotes, focusedIndex, handleNoteClick, setIsOpen]
+  );
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOnOpenChange}>
@@ -90,7 +155,7 @@ export function BrowseDialog(props: BrowseDialogProps) {
           <Input
             type="text"
             placeholder="Search notes..."
-            className="py-4.5 border-none p-4 text-sm placeholder:text-zinc-400 focus-visible:ring-0"
+            className="py-4.5 h-10 border-none p-4 text-sm placeholder:text-zinc-400 focus-visible:ring-0"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             spellCheck={false}
@@ -98,6 +163,7 @@ export function BrowseDialog(props: BrowseDialogProps) {
             autoCorrect="off"
             autoCapitalize="off"
             inputMode="search"
+            onKeyDown={handleKeyDown}
           />
         </div>
 
@@ -116,9 +182,9 @@ export function BrowseDialog(props: BrowseDialogProps) {
 
             {!isLoadingNotes && (
               <div className="flex flex-col px-2">
-                {filteredNotes?.map((note) => {
-                  const doc = JSON.parse(note.content) as JSONContent;
-                  const title = getTitle(doc) || 'Untitled';
+                {filteredNotes?.map((note, index) => {
+                  const isActive = note.id === activeNoteId;
+                  const isFocused = index === focusedIndex;
 
                   const relativeTime = DateTime.fromISO(
                     note.updatedAt
@@ -127,19 +193,35 @@ export function BrowseDialog(props: BrowseDialogProps) {
                   return (
                     <button
                       key={note.id}
-                      className="flex w-full items-center justify-between gap-2 rounded-md p-2 text-left text-zinc-600 transition-colors duration-150 hover:bg-zinc-100 hover:text-zinc-900"
+                      className={cn(
+                        'flex w-full items-center justify-between gap-2 rounded-md p-2 text-left text-zinc-600 transition-colors duration-150',
+                        isFocused && 'bg-zinc-100 text-zinc-900'
+                      )}
                       onClick={() => {
                         handleNoteClick(note);
                         setIsOpen(false);
                       }}
+                      onMouseEnter={() => {
+                        setFocusedIndex(index);
+                      }}
+                      onMouseLeave={() => {
+                        setFocusedIndex(null);
+                      }}
                     >
                       <div className="flex flex-col gap-1">
                         <Text size="2" className="w-full truncate font-medium">
-                          {title}
+                          {note.title}
                         </Text>
-                        <Text className="text-[13px] text-zinc-400">
-                          Updated {relativeTime}
-                        </Text>
+
+                        <div className="flex items-center gap-2">
+                          {isActive && (
+                            <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                          )}
+
+                          <Text className="text-[13px] text-zinc-400">
+                            Updated {relativeTime}
+                          </Text>
+                        </div>
                       </div>
                     </button>
                   );
@@ -168,5 +250,5 @@ function getTitle(content: JSONContent) {
     }
   }
 
-  return title;
+  return title?.slice(0, 100) ?? '';
 }

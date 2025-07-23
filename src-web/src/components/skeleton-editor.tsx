@@ -68,12 +68,13 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
     []
   );
 
+  const navigate = useNavigate();
+  const prevWindowSizeRef = useRef<PhysicalSize | null>(null);
   const shouldStopAutoResizeRef = useRef<boolean>(getIsManuallyResized());
   const editorContentRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const menuBarRef = useRef<HTMLDivElement>(null);
   const isProgrammaticResizeRef = useRef<boolean>(false);
-  const hasDoubleClickedRef = useRef<boolean>(false);
 
   useOnWindowResize(() => {
     if (isProgrammaticResizeRef.current) {
@@ -155,7 +156,6 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       await currentWindow.setSize(
         new PhysicalSize(currentSize.width, newHeight)
       );
-      hasDoubleClickedRef.current = false;
     },
     []
   );
@@ -169,7 +169,8 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       scrollThreshold: 40,
       scrollMargin: 40,
       attributes: {
-        class: 'focus:outline-none border-none px-5 pt-2 pb-0 editor-content',
+        class:
+          'focus:outline-none cursor-text! border-none px-5 pt-2 pb-0 editor-content',
       },
     },
     onTransaction: async ({ transaction, editor }) => {
@@ -327,7 +328,9 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
 
     shouldStopAutoResizeRef.current = false;
     setIsManuallyResized(false);
-    if (hasDoubleClickedRef.current) {
+
+    const shouldReposition = currentSize.height === newHeight;
+    if (shouldReposition) {
       const x =
         monitor.position.x +
         (monitor.size.width - currentSize.width - 40 * scaleFactor);
@@ -335,7 +338,6 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
 
       await currentWindow.setPosition(new PhysicalPosition(x, y));
       editor.commands.focus();
-      hasDoubleClickedRef.current = false;
       return;
     }
 
@@ -346,7 +348,6 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
 
     await currentWindow.setSize(new PhysicalSize(currentSize.width, newHeight));
     editor.commands.focus();
-    hasDoubleClickedRef.current = true;
     isProgrammaticResizeRef.current = true;
   }, [editor]);
 
@@ -362,9 +363,7 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
     [editor]
   );
 
-  const navigate = useNavigate();
-  const handleNoteClick = useCallback((note: Note) => {
-    console.log('HANDLE NOTE CLICK', note.id);
+  const handleNoteClick = useCallback(async (note: Note) => {
     navigate({
       to: '/$noteId',
       params: {
@@ -373,7 +372,6 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
     });
   }, []);
 
-  const prevWindowSizeRef = useRef<PhysicalSize | null>(null);
   const handleOpenChange = useCallback(async (open: boolean) => {
     const prevWindowSize = prevWindowSizeRef.current;
 
@@ -415,6 +413,7 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
     <main>
       <Header
         ref={headerRef}
+        activeNoteId={currentNoteId}
         onNewWindow={handleNewWindow}
         onDoubleClick={handleDoubleClick}
         onNoteClick={handleNoteClick}
@@ -428,7 +427,7 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
           id="editor-content"
           editor={editor}
           ref={editorContentRef}
-          className="flex grow flex-col overflow-y-scroll"
+          className="cursor-text! flex grow flex-col overflow-y-scroll"
           onScroll={onScroll}
           onClick={handleContentClick}
         />

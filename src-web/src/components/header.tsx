@@ -8,6 +8,7 @@ import { BrowseDialog, type BrowseDialogProps } from './browse-dialog';
 const currentWindow = getCurrentWindow();
 
 type HeaderProps = {
+  activeNoteId?: string;
   onNewWindow: () => void;
   onDoubleClick: () => void;
 } & BrowseDialogProps;
@@ -18,6 +19,7 @@ export const Header = forwardRef<
 >((props, ref) => {
   const {
     className,
+    activeNoteId,
     onNewWindow,
     onDoubleClick,
     onNoteClick,
@@ -48,7 +50,11 @@ export const Header = forwardRef<
         </div>
 
         <div className="flex items-center gap-2">
-          <BrowseDialog onNoteClick={onNoteClick} onOpenChange={onOpenChange} />
+          <BrowseDialog
+            activeNoteId={activeNoteId}
+            onNoteClick={onNoteClick}
+            onOpenChange={onOpenChange}
+          />
           <Button
             onClick={(e) => {
               e.stopPropagation();

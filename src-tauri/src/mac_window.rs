@@ -13,47 +13,107 @@ const WINDOW_CONTROL_PAD_X: f64 = 13.0;
 const WINDOW_CONTROL_PAD_Y: f64 = 16.0;
 const MAIN_WINDOW_PREFIX: &str = "main_";
 
-fn position_traffic_lights(ns_window_handle: UnsafeWindowHandle, x: f64, y: f64, label: String) {
+fn position_traffic_lights(
+    ns_window_handle: UnsafeWindowHandle,
+    x: f64,
+    y: f64,
+    label: String,
+) {
     if !label.starts_with(MAIN_WINDOW_PREFIX) {
         return;
     }
 
-    use cocoa::appkit::{NSView, NSWindow, NSWindowButton};
+    use cocoa::appkit::{NSView, NSWindow, NSWindowButton, NSWindowStyleMask};
+    use cocoa::base::{NO, YES};
     use cocoa::foundation::NSRect;
 
     let ns_window = ns_window_handle.0 as cocoa::base::id;
-    #[allow(unexpected_cfgs)]
+
     unsafe {
-        let close = ns_window.standardWindowButton_(NSWindowButton::NSWindowCloseButton);
-        let miniaturize =
-            ns_window.standardWindowButton_(NSWindowButton::NSWindowMiniaturizeButton);
-        let zoom = ns_window.standardWindowButton_(NSWindowButton::NSWindowZoomButton);
+        let current_style_mask: NSWindowStyleMask =
+            msg_send![ns_window, styleMask];
+        let required_style = current_style_mask
+            | NSWindowStyleMask::NSTitledWindowMask
+            | NSWindowStyleMask::NSClosableWindowMask
+            | NSWindowStyleMask::NSMiniaturizableWindowMask
+            | NSWindowStyleMask::NSResizableWindowMask; // This enables the zoom button
 
-        let _: () = msg_send![miniaturize, setEnabled: false];
-        let _: () = msg_send![zoom, setEnabled: false];
+        let _: () = msg_send![ns_window, setStyleMask: required_style];
 
-        let title_bar_container_view = close.superview().superview();
+        let close = ns_window
+            .standardWindowButton_(NSWindowButton::NSWindowCloseButton);
+        let miniaturize = ns_window
+            .standardWindowButton_(NSWindowButton::NSWindowMiniaturizeButton);
+        let zoom =
+            ns_window.standardWindowButton_(NSWindowButton::NSWindowZoomButton);
 
-        let close_rect: NSRect = msg_send![close, frame];
-        let button_height = close_rect.size.height;
+        if close == cocoa::base::nil {
+            println!("Close button is nil!");
+        }
+        if miniaturize == cocoa::base::nil {
+            println!("Minimize button is nil!");
+        }
+        if zoom == cocoa::base::nil {
+            println!("Zoom button is nil!");
+        }
 
-        let title_bar_frame_height = button_height + y;
-        let mut title_bar_rect = NSView::frame(title_bar_container_view);
-        title_bar_rect.size.height = title_bar_frame_height;
-        title_bar_rect.origin.y = NSView::frame(ns_window).size.height - title_bar_frame_height;
-        let _: () = msg_send![title_bar_container_view, setFrame: title_bar_rect];
+        if close != cocoa::base::nil {
+            let _: () = msg_send![close, setEnabled: YES];
+            let _: () = msg_send![close, setHidden: NO];
+        }
 
-        let window_buttons = vec![close, miniaturize, zoom];
-        let space_between = NSView::frame(miniaturize).origin.x - NSView::frame(close).origin.x;
+        if miniaturize != cocoa::base::nil {
+            let _: () = msg_send![miniaturize, setHidden: NO];
+            let _: () = msg_send![miniaturize, setEnabled: NO];
+        }
 
-        for (i, button) in window_buttons.into_iter().enumerate() {
-            let mut rect: NSRect = NSView::frame(button);
-            rect.origin.x = x + (i as f64 * space_between);
-            button.setFrameOrigin(rect.origin);
+        if zoom != cocoa::base::nil {
+            let _: () = msg_send![zoom, setHidden: NO];
+            let _: () = msg_send![zoom, setEnabled: NO];
+        }
+
+        if close != cocoa::base::nil {
+            let title_bar_container_view = close.superview().superview();
+
+            let close_rect: NSRect = msg_send![close, frame];
+            let button_height = close_rect.size.height;
+
+            let title_bar_frame_height = button_height + y;
+            let mut title_bar_rect = NSView::frame(title_bar_container_view);
+            title_bar_rect.size.height = title_bar_frame_height;
+            title_bar_rect.origin.y =
+                NSView::frame(ns_window).size.height - title_bar_frame_height;
+            let _: () =
+                msg_send![title_bar_container_view, setFrame: title_bar_rect];
+
+            let mut window_buttons = Vec::new();
+            if close != cocoa::base::nil {
+                window_buttons.push(close);
+            }
+            if miniaturize != cocoa::base::nil {
+                window_buttons.push(miniaturize);
+            }
+            if zoom != cocoa::base::nil {
+                window_buttons.push(zoom);
+            }
+
+            let space_between = if window_buttons.len() > 1
+                && miniaturize != cocoa::base::nil
+            {
+                NSView::frame(miniaturize).origin.x
+                    - NSView::frame(close).origin.x
+            } else {
+                20.0
+            };
+
+            for (i, button) in window_buttons.into_iter().enumerate() {
+                let mut rect: NSRect = NSView::frame(button);
+                rect.origin.x = x + (i as f64 * space_between);
+                button.setFrameOrigin(rect.origin);
+            }
         }
     }
 }
-
 #[derive(Debug)]
 struct WindowState<R: Runtime> {
     window: WebviewWindow<R>,
@@ -70,7 +130,9 @@ pub fn setup_traffic_light_positioner<R: Runtime>(window: &WebviewWindow<R>) {
     use std::ffi::c_void;
 
     position_traffic_lights(
-        UnsafeWindowHandle(window.ns_window().expect("Failed to create window handle")),
+        UnsafeWindowHandle(
+            window.ns_window().expect("Failed to create window handle"),
+        ),
         WINDOW_CONTROL_PAD_X,
         WINDOW_CONTROL_PAD_Y,
         window.label().to_string(),
@@ -97,26 +159,36 @@ pub fn setup_traffic_light_positioner<R: Runtime>(window: &WebviewWindow<R>) {
 
         let current_delegate: id = ns_win.delegate();
 
-        extern "C" fn on_window_should_close(this: &Object, _cmd: Sel, sender: id) -> BOOL {
+        extern "C" fn on_window_should_close(
+            this: &Object,
+            _cmd: Sel,
+            sender: id,
+        ) -> BOOL {
             unsafe {
                 let super_del: id = *this.get_ivar("super_delegate");
                 msg_send![super_del, windowShouldClose: sender]
             }
         }
-        extern "C" fn on_window_will_close(this: &Object, _cmd: Sel, notification: id) {
+        extern "C" fn on_window_will_close(
+            this: &Object,
+            _cmd: Sel,
+            notification: id,
+        ) {
             unsafe {
                 let super_del: id = *this.get_ivar("super_delegate");
                 let _: () = msg_send![super_del, windowWillClose: notification];
             }
         }
-        extern "C" fn on_window_did_resize<R: Runtime>(this: &Object, _cmd: Sel, notification: id) {
+        extern "C" fn on_window_did_resize<R: Runtime>(
+            this: &Object,
+            _cmd: Sel,
+            notification: id,
+        ) {
             unsafe {
                 with_window_state(&*this, |state: &mut WindowState<R>| {
-                    let id = state
-                        .window
-                        .ns_window()
-                        .expect("NS window should exist on state to handle resize")
-                        as id;
+                    let id = state.window.ns_window().expect(
+                        "NS window should exist on state to handle resize",
+                    ) as id;
 
                     position_traffic_lights(
                         UnsafeWindowHandle(id as *mut c_void),
@@ -130,7 +202,11 @@ pub fn setup_traffic_light_positioner<R: Runtime>(window: &WebviewWindow<R>) {
                 let _: () = msg_send![super_del, windowDidResize: notification];
             }
         }
-        extern "C" fn on_window_did_move(this: &Object, _cmd: Sel, notification: id) {
+        extern "C" fn on_window_did_move(
+            this: &Object,
+            _cmd: Sel,
+            notification: id,
+        ) {
             unsafe {
                 let super_del: id = *this.get_ivar("super_delegate");
                 let _: () = msg_send![super_del, windowDidMove: notification];
@@ -146,19 +222,33 @@ pub fn setup_traffic_light_positioner<R: Runtime>(window: &WebviewWindow<R>) {
                 let _: () = msg_send![super_del, windowDidChangeBackingProperties: notification];
             }
         }
-        extern "C" fn on_window_did_become_key(this: &Object, _cmd: Sel, notification: id) {
+        extern "C" fn on_window_did_become_key(
+            this: &Object,
+            _cmd: Sel,
+            notification: id,
+        ) {
             unsafe {
                 let super_del: id = *this.get_ivar("super_delegate");
-                let _: () = msg_send![super_del, windowDidBecomeKey: notification];
+                let _: () =
+                    msg_send![super_del, windowDidBecomeKey: notification];
             }
         }
-        extern "C" fn on_window_did_resign_key(this: &Object, _cmd: Sel, notification: id) {
+        extern "C" fn on_window_did_resign_key(
+            this: &Object,
+            _cmd: Sel,
+            notification: id,
+        ) {
             unsafe {
                 let super_del: id = *this.get_ivar("super_delegate");
-                let _: () = msg_send![super_del, windowDidResignKey: notification];
+                let _: () =
+                    msg_send![super_del, windowDidResignKey: notification];
             }
         }
-        extern "C" fn on_dragging_entered(this: &Object, _cmd: Sel, notification: id) -> BOOL {
+        extern "C" fn on_dragging_entered(
+            this: &Object,
+            _cmd: Sel,
+            notification: id,
+        ) -> BOOL {
             unsafe {
                 let super_del: id = *this.get_ivar("super_delegate");
                 msg_send![super_del, draggingEntered: notification]
@@ -174,19 +264,32 @@ pub fn setup_traffic_light_positioner<R: Runtime>(window: &WebviewWindow<R>) {
                 msg_send![super_del, prepareForDragOperation: notification]
             }
         }
-        extern "C" fn on_perform_drag_operation(this: &Object, _cmd: Sel, sender: id) -> BOOL {
+        extern "C" fn on_perform_drag_operation(
+            this: &Object,
+            _cmd: Sel,
+            sender: id,
+        ) -> BOOL {
             unsafe {
                 let super_del: id = *this.get_ivar("super_delegate");
                 msg_send![super_del, performDragOperation: sender]
             }
         }
-        extern "C" fn on_conclude_drag_operation(this: &Object, _cmd: Sel, notification: id) {
+        extern "C" fn on_conclude_drag_operation(
+            this: &Object,
+            _cmd: Sel,
+            notification: id,
+        ) {
             unsafe {
                 let super_del: id = *this.get_ivar("super_delegate");
-                let _: () = msg_send![super_del, concludeDragOperation: notification];
+                let _: () =
+                    msg_send![super_del, concludeDragOperation: notification];
             }
         }
-        extern "C" fn on_dragging_exited(this: &Object, _cmd: Sel, notification: id) {
+        extern "C" fn on_dragging_exited(
+            this: &Object,
+            _cmd: Sel,
+            notification: id,
+        ) {
             unsafe {
                 let super_del: id = *this.get_ivar("super_delegate");
                 let _: () = msg_send![super_del, draggingExited: notification];
@@ -249,7 +352,9 @@ pub fn setup_traffic_light_positioner<R: Runtime>(window: &WebviewWindow<R>) {
                         .emit("did-exit-fullscreen", ())
                         .expect("Failed to emit event");
 
-                    let id = state.window.ns_window().expect("Failed to emit event") as id;
+                    let id =
+                        state.window.ns_window().expect("Failed to emit event")
+                            as id;
                     position_traffic_lights(
                         UnsafeWindowHandle(id as *mut c_void),
                         WINDOW_CONTROL_PAD_X,
@@ -259,7 +364,8 @@ pub fn setup_traffic_light_positioner<R: Runtime>(window: &WebviewWindow<R>) {
                 });
 
                 let super_del: id = *this.get_ivar("super_delegate");
-                let _: () = msg_send![super_del, windowDidExitFullScreen: notification];
+                let _: () =
+                    msg_send![super_del, windowDidExitFullScreen: notification];
             }
         }
         extern "C" fn on_window_will_exit_full_screen<R: Runtime>(
@@ -328,7 +434,8 @@ pub fn setup_traffic_light_positioner<R: Runtime>(window: &WebviewWindow<R>) {
 
         // We need to ensure we have a unique delegate name, otherwise we will panic while trying to create a duplicate
         // delegate with the same name.
-        let delegate_name = format!("windowDelegate_{}_{}", window_label, random_str);
+        let delegate_name =
+            format!("windowDelegate_{}_{}", window_label, random_str);
 
         ns_win.setDelegate_(delegate!(&delegate_name, {
             window: id = ns_win,

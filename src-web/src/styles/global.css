@@ -50,3 +50,16 @@ body,
 @utility shadow-border {
   box-shadow: 0 0 0 1px var(--tw-shadow-color, #00000014);
 }
+
+/* Disable user selection to make it more "app-like" */
+:where(*):not(a, input, textarea):not([contenteditable] *):not(
+    [contenteditable] *
+  )::before,
+:where(*):not(a, input, textarea):not([contenteditable] *):not(
+    [contenteditable] *
+  )::after,
+:where(*):not(a, input, textarea):not([contenteditable] *):not(
+    [contenteditable] *
+  ) {
+  @apply cursor-default select-none;
+}

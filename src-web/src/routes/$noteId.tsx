@@ -18,5 +18,11 @@ function RouteComponent() {
   const { noteId } = Route.useParams();
   const { note } = Route.useLoaderData();
 
-  return <SkeletonEditor noteId={noteId} content={JSON.parse(note.content)} />;
+  return (
+    <SkeletonEditor
+      key={noteId}
+      noteId={noteId}
+      content={JSON.parse(note.content)}
+    />
+  );
 }
