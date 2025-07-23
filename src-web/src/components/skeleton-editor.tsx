@@ -374,6 +374,9 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
 
     const currentWindow = getCurrentWindow();
     await currentWindow.setSize(prevWindowSize);
+    prevWindowSizeRef.current = null;
+    isProgrammaticResizeRef.current = true;
+    editor.commands.focus();
   }, []);
 
   const handleDeleteNote = useCallback(async () => {
@@ -415,6 +418,7 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       }
 
       await currentWindow.setSize(prevWindowSize);
+      prevWindowSizeRef.current = null;
       isProgrammaticResizeRef.current = true;
       editor.commands.focus();
       return;
