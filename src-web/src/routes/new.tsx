@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from '@tanstack/react-router';
 import { invoke } from '@tauri-apps/api/core';
 import { SkeletonEditor } from '~/components/skeleton-editor';
-import defaultNoteContent from '~/components/default-note-content.json';
+import defaultNoteContent from '~/lib/default-note-content.json';
 import type { Note } from '@sticky/models';
 
 export const Route = createFileRoute('/new')({

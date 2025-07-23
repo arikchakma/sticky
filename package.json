@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "tauri": "tauri",
+    "tauri:dev": "tauri dev --config ./src-tauri/tauri-dev.conf.json",
+    "tauri:dev-build": "tauri build --config ./src-tauri/tauri-dev.conf.json",
     "tauri:before-dev": "pnpm --filter @sticky/app dev",
     "tauri:before-build": "pnpm --filter @sticky/app build",
     "format:write": "prettier --write \"**/*.{ts,tsx,md}\"",

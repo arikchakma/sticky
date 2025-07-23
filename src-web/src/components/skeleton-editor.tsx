@@ -30,7 +30,7 @@ import { CodeBlock } from '~/lib/highlighter';
 import { clamp } from '~/lib/number';
 import { getTransactionType } from '~/lib/transaction';
 import { listNotesOptions } from '~/queries/notes';
-import defaultNoteContent from '~/components/default-note-content.json';
+import defaultNoteContent from '~/lib/default-note-content.json';
 import { useOnFocusChanged } from '~/hooks/use-on-focus-changed';
 
 const EDITOR_CONTENT_ID = 'editor-content';
@@ -99,20 +99,44 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
     editor?.commands?.focus();
   });
 
+  function calculateEditorHeight(editor: TiptapEditor) {
+    const header = headerRef.current;
+    const menuBar = menuBarRef.current;
+    const editorContent = editor.view.dom;
+    const topDivider = topDividerRef.current;
+    const bottomDivider = bottomDividerRef.current;
+    if (
+      !header ||
+      !menuBar ||
+      !editorContent ||
+      !topDivider ||
+      !bottomDivider
+    ) {
+      return;
+    }
+
+    const rect = editorContent.getBoundingClientRect();
+    const editorHeight = rect.height;
+    const menuBarHeight = menuBar.getBoundingClientRect().height;
+    const headerHeight = header.getBoundingClientRect().height;
+    const topDividerHeight = topDivider.getBoundingClientRect().height;
+    const bottomDividerHeight = bottomDivider.getBoundingClientRect().height;
+
+    return (
+      editorHeight +
+      menuBarHeight +
+      headerHeight +
+      topDividerHeight +
+      bottomDividerHeight
+    );
+  }
+
   const handleResize = useCallback(
     async (editor: TiptapEditor, force: boolean = false) => {
-      const header = headerRef.current;
-      const menuBar = menuBarRef.current;
       const editorContent = editorContentRef.current;
       const topDivider = topDividerRef.current;
       const bottomDivider = bottomDividerRef.current;
-      if (
-        !header ||
-        !menuBar ||
-        !editorContent ||
-        !topDivider ||
-        !bottomDivider
-      ) {
+      if (!editorContent || !topDivider || !bottomDivider) {
         return;
       }
 
@@ -123,19 +147,10 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
 
       shouldStopAutoResizeRef.current = false;
 
-      const rect = editor.view.dom.getBoundingClientRect();
-      const editorHeight = rect.height;
-      const menuBarHeight = menuBar.getBoundingClientRect().height;
-      const headerHeight = header.getBoundingClientRect().height;
-      const topDividerHeight = topDivider.getBoundingClientRect().height;
-      const bottomDividerHeight = bottomDivider.getBoundingClientRect().height;
-
-      const totalHeight =
-        editorHeight +
-        menuBarHeight +
-        headerHeight +
-        topDividerHeight +
-        bottomDividerHeight;
+      const totalHeight = calculateEditorHeight(editor);
+      if (totalHeight === undefined) {
+        return;
+      }
 
       const monitor = await currentMonitor();
       if (!monitor) {
@@ -187,7 +202,8 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       isProgrammaticResizeRef.current = true;
       await handleResize(editor);
     },
-    onUpdate: () => {
+    onUpdate: ({ editor }) => {
+      console.log(JSON.stringify(editor.getJSON()));
       isDirtyRef.current = true;
     },
   });
@@ -268,6 +284,7 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
     queryClient.invalidateQueries(listNotesOptions());
     await invoke('cmd_new_main_window', {
       url: `/${newNote.id}`,
+      size: [400, 115],
     });
   }, [editor]);
 
@@ -278,35 +295,17 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
         return;
       }
 
-      const header = headerRef.current;
-      const menuBar = menuBarRef.current;
       const editorContent = editorContentRef.current;
       const topDivider = topDividerRef.current;
       const bottomDivider = bottomDividerRef.current;
-      if (
-        !header ||
-        !menuBar ||
-        !editorContent ||
-        !topDivider ||
-        !bottomDivider ||
-        !editor
-      ) {
+      if (!editorContent || !topDivider || !bottomDivider) {
         return;
       }
 
-      const rect = editor.view.dom.getBoundingClientRect();
-      const editorHeight = rect.height;
-      const menuBarHeight = menuBar.getBoundingClientRect().height;
-      const headerHeight = header.getBoundingClientRect().height;
-      const topDividerHeight = topDivider.getBoundingClientRect().height;
-      const bottomDividerHeight = bottomDivider.getBoundingClientRect().height;
-
-      const totalHeight =
-        editorHeight +
-        menuBarHeight +
-        headerHeight +
-        topDividerHeight +
-        bottomDividerHeight;
+      const totalHeight = calculateEditorHeight(editor);
+      if (totalHeight === undefined) {
+        return;
+      }
 
       const monitor = await currentMonitor();
       if (!monitor) {

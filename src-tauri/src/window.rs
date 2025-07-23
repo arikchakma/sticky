@@ -1,4 +1,6 @@
-use tauri::{AppHandle, Manager, Runtime, WebviewUrl, WebviewWindow, WindowEvent};
+use tauri::{
+    AppHandle, Manager, Runtime, WebviewUrl, WebviewWindow, WindowEvent,
+};
 use tokio::sync::mpsc;
 
 use crate::debug_log;
@@ -6,6 +8,7 @@ use crate::debug_log;
 pub const MAIN_WINDOW_PREFIX: &str = "main_";
 pub const OTHER_WINDOW_PREFIX: &str = "other_";
 
+pub const DEFAULT_FIRST_MAIN_WINDOW_HEIGHT: f64 = 356.0;
 pub const DEFAULT_WINDOW_WIDTH: f64 = 400.0;
 pub const DEFAULT_WINDOW_HEIGHT: f64 = 700.0;
 
@@ -42,13 +45,16 @@ pub(crate) fn create_window<R: Runtime>(
 
     debug_log!("Create new window label={}", config.label);
 
-    let mut win_builder =
-        tauri::WebviewWindowBuilder::new(handle, config.label, WebviewUrl::App(config.url.into()))
-            .title(config.title)
-            .resizable(true)
-            .fullscreen(false)
-            .disable_drag_drop_handler() // Required for frontend Dnd on windows
-            .min_inner_size(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT);
+    let mut win_builder = tauri::WebviewWindowBuilder::new(
+        handle,
+        config.label,
+        WebviewUrl::App(config.url.into()),
+    )
+    .title(config.title)
+    .resizable(true)
+    .fullscreen(false)
+    .disable_drag_drop_handler() // Required for frontend Dnd on windows
+    .min_inner_size(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT);
 
     if let Some((w, h)) = config.inner_size {
         win_builder = win_builder.inner_size(w, h);
@@ -170,6 +176,7 @@ pub(crate) fn create_window<R: Runtime>(
 pub fn create_main_window(
     handle: &AppHandle,
     url: &str,
+    size: Option<(f64, f64)>,
     position: Option<(f64, f64)>,
 ) -> WebviewWindow {
     let mut counter = 0;
@@ -183,12 +190,18 @@ pub fn create_main_window(
     .expect("Failed to generate label for new window");
 
     let position = position.unwrap_or((100.0, 100.0));
+    let default_size = if counter == 0 {
+        (DEFAULT_WINDOW_WIDTH, DEFAULT_FIRST_MAIN_WINDOW_HEIGHT)
+    } else {
+        (DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT)
+    };
+    let inner_size = size.unwrap_or(default_size);
 
     let config = CreateWindowConfig {
         url,
         label: label.as_str(),
-        title: "Sticky Notes",
-        inner_size: Some((DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT)),
+        title: "Sticky",
+        inner_size: Some(inner_size),
         position: Some(position),
         hide_titlebar: true,
         always_on_top: true,
@@ -210,14 +223,10 @@ pub fn create_child_window(
     let label = format!("{OTHER_WINDOW_PREFIX}_{label}");
     let scale_factor = parent_window.scale_factor().unwrap();
 
-    let current_pos = parent_window
-        .inner_position()
-        .unwrap()
-        .to_logical::<f64>(scale_factor);
-    let current_size = parent_window
-        .inner_size()
-        .unwrap()
-        .to_logical::<f64>(scale_factor);
+    let current_pos =
+        parent_window.inner_position().unwrap().to_logical::<f64>(scale_factor);
+    let current_size =
+        parent_window.inner_size().unwrap().to_logical::<f64>(scale_factor);
 
     let position = (
         current_pos.x + current_size.width / 2.0 - inner_size.0 / 2.0,
@@ -241,7 +250,9 @@ pub fn create_child_window(
         let child_window = child_window.clone();
         child_window.clone().on_window_event(move |e| match e {
             WindowEvent::Destroyed => {
-                if let Some(w) = parent_window.get_webview_window(child_window.label()) {
+                if let Some(w) =
+                    parent_window.get_webview_window(child_window.label())
+                {
                     w.set_focus().unwrap();
                 }
             }
@@ -256,7 +267,9 @@ pub fn create_child_window(
             WindowEvent::CloseRequested { .. } => child_window.close().unwrap(),
             WindowEvent::Focused(focus) => {
                 if *focus {
-                    if let Some(w) = parent_window.get_webview_window(child_window.label()) {
+                    if let Some(w) =
+                        parent_window.get_webview_window(child_window.label())
+                    {
                         w.set_focus().unwrap();
                     };
                 }

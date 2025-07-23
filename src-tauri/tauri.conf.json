@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "sticky",
+  "productName": "Sticky",
   "version": "0.1.0",
-  "identifier": "com.sticky.fyi",
+  "identifier": "app.sticky.desktop",
   "build": {
     "beforeDevCommand": "pnpm tauri:before-dev",
     "devUrl": "http://localhost:1420",
@@ -10,19 +10,27 @@
     "frontendDist": "../dist"
   },
   "app": {
+    "withGlobalTauri": false,
     "security": {
       "csp": null
     }
   },
   "bundle": {
+    "publisher": "Sticky",
+    "license": "MIT",
+    "category": "Productivity",
+    "copyright": "Sticky",
+    "homepage": "https://sticky.fyi",
     "active": true,
     "targets": "all",
     "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
-    ]
+      "icons/release/32x32.png",
+      "icons/release/128x128.png",
+      "icons/release/128x128@2x.png",
+      "icons/release/icon.icns",
+      "icons/release/icon.ico"
+    ],
+    "longDescription": "Sticky is a note-taking app that helps you stay organized and productive.",
+    "shortDescription": "Take notes with ease"
   }
 }

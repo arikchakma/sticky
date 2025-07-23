@@ -38,9 +38,10 @@ async fn cmd_new_child_window(
 async fn cmd_new_main_window(
     app_handle: AppHandle,
     url: &str,
+    size: Option<(f64, f64)>,
     position: Option<(f64, f64)>,
 ) -> Result<(), String> {
-    window::create_main_window(&app_handle, url, position);
+    window::create_main_window(&app_handle, url, size, position);
     Ok(())
 }
 
@@ -174,7 +175,7 @@ pub fn run() {
     let mut builder = tauri::Builder::default()
         .plugin(
             tauri_plugin_window_state::Builder::new()
-                // .skip_initial_state(&format!("{MAIN_WINDOW_PREFIX}0"))
+                .skip_initial_state(&format!("{MAIN_WINDOW_PREFIX}0"))
                 .build(),
         )
         .plugin(tauri_plugin_dialog::init())
@@ -203,7 +204,8 @@ pub fn run() {
                 RunEvent::Ready => {
                     debug_log!("Application is ready, creating main window");
                     let handle = app_handle.clone();
-                    let window = window::create_main_window(&handle, "/", None);
+                    let window =
+                        window::create_main_window(&handle, "/", None, None);
 
                     tauri::async_runtime::spawn(async move {
                         match window.restore_state(StateFlags::all()) {

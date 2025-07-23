@@ -41,7 +41,9 @@ export const Header = forwardRef<
     >
       <div
         className="flex h-full items-center justify-between pr-1"
-        onMouseDown={() => {
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
           currentWindow.startDragging();
         }}
         id={HEADER_ID}
