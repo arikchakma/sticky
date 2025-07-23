@@ -5,12 +5,14 @@ import { cn } from '~/utils/classname';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { BrowseDialog, type BrowseDialogProps } from './browse-dialog';
 
+export const HEADER_ID = 'main-header';
+
 const currentWindow = getCurrentWindow();
 
 type HeaderProps = {
   activeNoteId?: string;
   onNewWindow: () => void;
-  onDoubleClick: () => void;
+  onDoubleClick: (e: React.MouseEvent<HTMLDivElement>) => void;
 } & BrowseDialogProps;
 
 export const Header = forwardRef<
@@ -41,6 +43,7 @@ export const Header = forwardRef<
         onMouseDown={() => {
           currentWindow.startDragging();
         }}
+        id={HEADER_ID}
         onDoubleClick={onDoubleClick}
       >
         <div className="pointer-events-none flex items-center gap-2 pl-3.5">

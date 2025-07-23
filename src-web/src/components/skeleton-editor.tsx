@@ -29,6 +29,9 @@ import type { Note } from '@sticky/models';
 import { useInterval } from '~/hooks/use-interval';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
+import { HEADER_ID } from '~/components/header';
+
+const EDITOR_CONTENT_ID = 'editor-content';
 
 type SkeletonEditorProps = {
   noteId?: string;
@@ -278,83 +281,93 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
     });
   }, [editor]);
 
-  const handleDoubleClick = useCallback(async () => {
-    const header = headerRef.current;
-    const menuBar = menuBarRef.current;
-    const editorContent = editorContentRef.current;
-    const topDivider = topDividerRef.current;
-    const bottomDivider = bottomDividerRef.current;
-    if (
-      !header ||
-      !menuBar ||
-      !editorContent ||
-      !topDivider ||
-      !bottomDivider ||
-      !editor
-    ) {
-      return;
-    }
+  const handleDoubleClick = useCallback(
+    async (e: React.MouseEvent<HTMLDivElement>) => {
+      const target = e.target instanceof HTMLElement ? e.target : null;
+      if (target?.id !== HEADER_ID) {
+        return;
+      }
 
-    const rect = editor.view.dom.getBoundingClientRect();
-    const editorHeight = rect.height;
-    const menuBarHeight = menuBar.getBoundingClientRect().height;
-    const headerHeight = header.getBoundingClientRect().height;
-    const topDividerHeight = topDivider.getBoundingClientRect().height;
-    const bottomDividerHeight = bottomDivider.getBoundingClientRect().height;
+      const header = headerRef.current;
+      const menuBar = menuBarRef.current;
+      const editorContent = editorContentRef.current;
+      const topDivider = topDividerRef.current;
+      const bottomDivider = bottomDividerRef.current;
+      if (
+        !header ||
+        !menuBar ||
+        !editorContent ||
+        !topDivider ||
+        !bottomDivider ||
+        !editor
+      ) {
+        return;
+      }
 
-    const totalHeight =
-      editorHeight +
-      menuBarHeight +
-      headerHeight +
-      topDividerHeight +
-      bottomDividerHeight;
+      const rect = editor.view.dom.getBoundingClientRect();
+      const editorHeight = rect.height;
+      const menuBarHeight = menuBar.getBoundingClientRect().height;
+      const headerHeight = header.getBoundingClientRect().height;
+      const topDividerHeight = topDivider.getBoundingClientRect().height;
+      const bottomDividerHeight = bottomDivider.getBoundingClientRect().height;
 
-    const monitor = await currentMonitor();
-    if (!monitor) {
-      return;
-    }
+      const totalHeight =
+        editorHeight +
+        menuBarHeight +
+        headerHeight +
+        topDividerHeight +
+        bottomDividerHeight;
 
-    const scaleFactor = monitor.scaleFactor;
-    const screenHeight = monitor.workArea.size.height;
+      const monitor = await currentMonitor();
+      if (!monitor) {
+        return;
+      }
 
-    const currentWindow = getCurrentWindow();
-    const currentSize = await currentWindow.outerSize();
+      const scaleFactor = monitor.scaleFactor;
+      const screenHeight = monitor.workArea.size.height;
 
-    const MAX_HEIGHT = Math.floor(screenHeight * 0.75);
-    const MIN_HEIGHT = 115 * scaleFactor;
+      const currentWindow = getCurrentWindow();
+      const currentSize = await currentWindow.outerSize();
 
-    const calculatedHeight = Math.max(MIN_HEIGHT, totalHeight * scaleFactor);
-    const newHeight = Math.ceil(Math.min(MAX_HEIGHT, calculatedHeight));
+      const MAX_HEIGHT = Math.floor(screenHeight * 0.75);
+      const MIN_HEIGHT = 115 * scaleFactor;
 
-    shouldStopAutoResizeRef.current = false;
-    setIsManuallyResized(false);
+      const calculatedHeight = Math.max(MIN_HEIGHT, totalHeight * scaleFactor);
+      const newHeight = Math.ceil(Math.min(MAX_HEIGHT, calculatedHeight));
 
-    const shouldReposition = currentSize.height === newHeight;
-    if (shouldReposition) {
-      const x =
-        monitor.position.x +
-        (monitor.size.width - currentSize.width - 40 * scaleFactor);
-      const y = monitor.position.y + 100 * scaleFactor;
+      shouldStopAutoResizeRef.current = false;
+      setIsManuallyResized(false);
 
-      await currentWindow.setPosition(new PhysicalPosition(x, y));
+      const shouldReposition = currentSize.height === newHeight;
+      if (shouldReposition) {
+        const x =
+          monitor.position.x +
+          (monitor.size.width - currentSize.width - 40 * scaleFactor);
+        const y = monitor.position.y + 100 * scaleFactor;
+
+        await currentWindow.setPosition(new PhysicalPosition(x, y));
+        editor.commands.focus();
+        return;
+      }
+
+      const hasCrossedMaxHeight = calculatedHeight >= MAX_HEIGHT;
+      editorContent.classList.toggle('overflow-y-scroll', hasCrossedMaxHeight);
+      bottomDivider.style.opacity = '0';
+      topDivider.style.opacity = '0';
+
+      await currentWindow.setSize(
+        new PhysicalSize(currentSize.width, newHeight)
+      );
       editor.commands.focus();
-      return;
-    }
-
-    const hasCrossedMaxHeight = calculatedHeight >= MAX_HEIGHT;
-    editorContent.classList.toggle('overflow-y-scroll', hasCrossedMaxHeight);
-    bottomDivider.style.opacity = '0';
-    topDivider.style.opacity = '0';
-
-    await currentWindow.setSize(new PhysicalSize(currentSize.width, newHeight));
-    editor.commands.focus();
-    isProgrammaticResizeRef.current = true;
-  }, [editor]);
+      isProgrammaticResizeRef.current = true;
+    },
+    [editor]
+  );
 
   const handleContentClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       const target = e.target instanceof HTMLElement ? e.target : null;
-      if (!target || target.id !== 'editor-content') {
+      if (!target || target.id !== EDITOR_CONTENT_ID) {
         return;
       }
 
@@ -424,7 +437,7 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
         <Divider ref={topDividerRef} className="opacity-0 transition-opacity" />
 
         <EditorContent
-          id="editor-content"
+          id={EDITOR_CONTENT_ID}
           editor={editor}
           ref={editorContentRef}
           className="cursor-text! flex grow flex-col overflow-y-scroll"

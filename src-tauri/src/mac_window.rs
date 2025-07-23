@@ -1,4 +1,4 @@
-#![allow(deprecated)]
+#![allow(deprecated, unexpected_cfgs)]
 
 use objc::{msg_send, sel, sel_impl};
 use tauri::{Emitter, Runtime, WebviewWindow};

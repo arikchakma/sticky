@@ -1,4 +1,4 @@
-import { LayersIcon, Loader2Icon } from 'lucide-react';
+import { LayersIcon, Loader2Icon, StickyNoteIcon } from 'lucide-react';
 import { Button } from './ui/button';
 import {
   Dialog,
@@ -14,7 +14,7 @@ import { useQuery } from '@tanstack/react-query';
 import { listNotesOptions } from '~/queries/notes';
 import type { JSONContent } from '@tiptap/react';
 import { DateTime } from 'luxon';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Note } from '@sticky/models';
 import { cn } from '~/utils/classname';
 
@@ -29,7 +29,7 @@ export function BrowseDialog(props: BrowseDialogProps) {
 
   const [search, setSearch] = useState('');
   const [isOpen, setIsOpen] = useState(false);
-  const [focusedIndex, setFocusedIndex] = useState<number | null>(0);
+  const [focusedIndex, setFocusedIndex] = useState<number>(0);
 
   const { data: notes, isLoading: isLoadingNotes } = useQuery({
     ...listNotesOptions(),
@@ -87,30 +87,14 @@ export function BrowseDialog(props: BrowseDialogProps) {
       const maxIndex = filteredNotes?.length ?? 0;
       if (key === 'ArrowDown') {
         setFocusedIndex((prev) => {
-          if (prev === null) {
-            return 0;
-          }
-
-          if (prev === maxIndex - 1) {
-            return 0;
-          }
-
-          return prev + 1;
+          return prev === maxIndex - 1 ? 0 : prev + 1;
         });
       } else if (key === 'ArrowUp') {
         setFocusedIndex((prev) => {
-          if (prev === null) {
-            return 0;
-          }
-
-          if (prev === 0) {
-            return maxIndex - 1;
-          }
-
-          return prev - 1;
+          return prev === 0 ? maxIndex - 1 : prev - 1;
         });
       } else if (key === 'Enter') {
-        const note = filteredNotes?.[focusedIndex ?? 0];
+        const note = filteredNotes?.[focusedIndex];
         if (!note) {
           return;
         }
@@ -121,6 +105,14 @@ export function BrowseDialog(props: BrowseDialogProps) {
     },
     [filteredNotes, focusedIndex, handleNoteClick, setIsOpen]
   );
+
+  useEffect(() => {
+    setFocusedIndex(0);
+  }, [filteredNotes]);
+
+  const isFilteredNotesEmpty = useMemo(() => {
+    return filteredNotes?.length === 0;
+  }, [filteredNotes]);
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOnOpenChange}>
@@ -167,69 +159,80 @@ export function BrowseDialog(props: BrowseDialogProps) {
           />
         </div>
 
-        <div className="flex grow flex-col pb-2 pt-3">
-          <div className="flex items-center justify-between gap-2 px-4 pb-2 text-zinc-400">
-            <Text size="2">Notes</Text>
-            <Text size="2">{notes?.length} Notes</Text>
+        {isFilteredNotesEmpty && (
+          <div className="flex flex-col items-center justify-center gap-2 p-4 py-8">
+            <StickyNoteIcon className="h-10 w-10 text-zinc-300" />
+            <Text size="3" className="text-zinc-400">
+              No notes found
+            </Text>
           </div>
+        )}
 
-          <div>
-            {isLoadingNotes && (
-              <div className="flex items-center justify-center p-4">
-                <Loader2Icon className="h-4 w-4 animate-spin" />
-              </div>
-            )}
+        {!isFilteredNotesEmpty && (
+          <div className="flex grow flex-col pb-2 pt-3">
+            <div className="flex items-center justify-between gap-2 px-4 pb-2 text-zinc-400">
+              <Text size="2">Notes</Text>
+              <Text size="2">{notes?.length} Notes</Text>
+            </div>
 
-            {!isLoadingNotes && (
-              <div className="flex flex-col px-2">
-                {filteredNotes?.map((note, index) => {
-                  const isActive = note.id === activeNoteId;
-                  const isFocused = index === focusedIndex;
+            <div>
+              {isLoadingNotes && (
+                <div className="flex items-center justify-center p-4">
+                  <Loader2Icon className="h-4 w-4 animate-spin" />
+                </div>
+              )}
 
-                  const relativeTime = DateTime.fromISO(
-                    note.updatedAt
-                  ).toRelative();
+              {!isLoadingNotes && (
+                <div className="flex flex-col px-2">
+                  {filteredNotes?.map((note, index) => {
+                    const isActive = note.id === activeNoteId;
+                    const isFocused = index === focusedIndex;
 
-                  return (
-                    <button
-                      key={note.id}
-                      className={cn(
-                        'flex w-full items-center justify-between gap-2 rounded-md p-2 text-left text-zinc-600 transition-colors duration-150',
-                        isFocused && 'bg-zinc-100 text-zinc-900'
-                      )}
-                      onClick={() => {
-                        handleNoteClick(note);
-                        setIsOpen(false);
-                      }}
-                      onMouseEnter={() => {
-                        setFocusedIndex(index);
-                      }}
-                      onMouseLeave={() => {
-                        setFocusedIndex(null);
-                      }}
-                    >
-                      <div className="flex flex-col gap-1">
-                        <Text size="2" className="w-full truncate font-medium">
-                          {note.title}
-                        </Text>
+                    const relativeTime = DateTime.fromISO(
+                      note.updatedAt
+                    ).toRelative();
 
-                        <div className="flex items-center gap-2">
-                          {isActive && (
-                            <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-                          )}
-
-                          <Text className="text-[13px] text-zinc-400">
-                            Updated {relativeTime}
+                    return (
+                      <button
+                        key={note.id}
+                        className={cn(
+                          'flex w-full items-center justify-between gap-2 rounded-md p-2 text-left text-zinc-600',
+                          isFocused && 'bg-zinc-100 text-zinc-900'
+                        )}
+                        onClick={() => {
+                          handleNoteClick(note);
+                          setIsOpen(false);
+                        }}
+                        onMouseEnter={() => {
+                          setFocusedIndex(index);
+                        }}
+                      >
+                        <div className="flex flex-col gap-1">
+                          <Text
+                            size="2"
+                            className="w-full truncate font-medium"
+                          >
+                            {note.title}
                           </Text>
+
+                          <div className="flex items-center gap-2">
+                            {isActive && (
+                              <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                            )}
+
+                            <Text className="text-[13px] text-zinc-400">
+                              Updated {relativeTime}
+                            </Text>
+                          </div>
                         </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </ScrollableDialogContent>
     </Dialog>
   );
