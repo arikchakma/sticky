@@ -1,35 +1,34 @@
-import { CharacterCount } from '@tiptap/extension-character-count';
-import { ListKit } from '@tiptap/extension-list';
-import { Placeholder } from '@tiptap/extensions/placeholder';
-import {
-  Editor as TiptapEditor,
-  EditorContent,
-  useEditor,
-  type JSONContent,
-} from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import { useCallback, useMemo, useRef } from 'react';
-import { Divider } from '~/components/divider';
-import { Header } from '~/components/header';
-import { MenuBar } from '~/components/menu-bar/menu-bar';
-import { CodeBlock } from '~/lib/highlighter';
-import { clamp } from '~/utils/number';
+import type { Note } from '@sticky/models';
+import { useMutation } from '@tanstack/react-query';
+import { useNavigate } from '@tanstack/react-router';
+import { invoke } from '@tauri-apps/api/core';
 import {
   currentMonitor,
   getCurrentWindow,
   PhysicalPosition,
   PhysicalSize,
 } from '@tauri-apps/api/window';
-import { getTransactionType } from '~/lib/transaction';
+import { CharacterCount } from '@tiptap/extension-character-count';
+import { ListKit } from '@tiptap/extension-list';
+import { Placeholder } from '@tiptap/extensions/placeholder';
+import {
+  EditorContent,
+  Editor as TiptapEditor,
+  useEditor,
+  type JSONContent,
+} from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import { useCallback, useMemo, useRef } from 'react';
+import { toast } from 'sonner';
+import { Divider } from '~/components/divider';
+import { Header, HEADER_ID } from '~/components/header';
+import { MenuBar } from '~/components/menu-bar/menu-bar';
+import { useInterval } from '~/hooks/use-interval';
 import { useOnWindowResize } from '~/hooks/use-on-window-resize';
 import { getIsManuallyResized, setIsManuallyResized } from '~/lib/autosize';
-import { invoke } from '@tauri-apps/api/core';
-import { toast } from 'sonner';
-import type { Note } from '@sticky/models';
-import { useInterval } from '~/hooks/use-interval';
-import { useMutation } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
-import { HEADER_ID } from '~/components/header';
+import { CodeBlock } from '~/lib/highlighter';
+import { getTransactionType } from '~/lib/transaction';
+import { clamp } from '~/utils/number';
 
 const EDITOR_CONTENT_ID = 'editor-content';
 

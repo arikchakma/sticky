@@ -1,6 +1,6 @@
+import type { Note } from '@sticky/models';
 import { queryOptions } from '@tanstack/react-query';
 import { invoke } from '@tauri-apps/api/core';
-import type { Note } from '@sticky/models';
 
 export function listNotesOptions() {
   return queryOptions({

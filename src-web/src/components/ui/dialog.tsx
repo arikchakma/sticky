@@ -1,6 +1,6 @@
-import * as React from 'react';
-import { Dialog as DialogPrimitive } from 'radix-ui';
 import { AlertCircleIcon, Loader2Icon, X } from 'lucide-react';
+import { Dialog as DialogPrimitive } from 'radix-ui';
+import * as React from 'react';
 import { cn } from '~/utils/classname';
 import { headingVariants, type HeadingVariantProps } from './heading';
 import { textVariants, type TextVariantProps } from './text';
@@ -222,14 +222,14 @@ export function DialogLoading(props: DialogLoadingProps) {
 
 export {
   Dialog,
-  DialogPortal,
-  DialogOverlay,
   DialogClose,
-  DialogTrigger,
   DialogContent,
-  DialogHeader,
-  DialogFooter,
-  DialogTitle,
   DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogOverlay,
+  DialogPortal,
+  DialogTitle,
+  DialogTrigger,
   ScrollableDialogContent,
 };

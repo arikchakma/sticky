@@ -1,9 +1,9 @@
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { PlusIcon } from 'lucide-react';
 import { forwardRef } from 'react';
-import { Button } from './ui/button';
 import { cn } from '~/utils/classname';
-import { getCurrentWindow } from '@tauri-apps/api/window';
 import { BrowseDialog, type BrowseDialogProps } from './browse-dialog';
+import { Button } from './ui/button';
 
 export const HEADER_ID = 'main-header';
 

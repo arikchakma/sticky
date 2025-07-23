@@ -1,7 +1,7 @@
+import type { Note } from '@sticky/models';
 import { createFileRoute } from '@tanstack/react-router';
 import { invoke } from '@tauri-apps/api/core';
 import { SkeletonEditor } from '~/components/skeleton-editor';
-import type { Note } from '@sticky/models';
 
 export const Route = createFileRoute('/$noteId')({
   component: RouteComponent,

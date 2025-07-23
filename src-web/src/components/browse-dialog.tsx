@@ -1,4 +1,11 @@
+import type { Note } from '@sticky/models';
+import { useQuery } from '@tanstack/react-query';
+import type { JSONContent } from '@tiptap/react';
 import { LayersIcon, Loader2Icon, StickyNoteIcon } from 'lucide-react';
+import { DateTime } from 'luxon';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { listNotesOptions } from '~/queries/notes';
+import { cn } from '~/utils/classname';
 import { Button } from './ui/button';
 import {
   Dialog,
@@ -10,13 +17,6 @@ import {
 } from './ui/dialog';
 import { Input } from './ui/input';
 import { Text } from './ui/text';
-import { useQuery } from '@tanstack/react-query';
-import { listNotesOptions } from '~/queries/notes';
-import type { JSONContent } from '@tiptap/react';
-import { DateTime } from 'luxon';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { Note } from '@sticky/models';
-import { cn } from '~/utils/classname';
 
 export type BrowseDialogProps = {
   activeNoteId?: string;
