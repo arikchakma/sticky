@@ -4,6 +4,6 @@ CREATE TABLE
     model TEXT NOT NULL DEFAULT 'note',
     id TEXT PRIMARY KEY,
     content TEXT NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TEXT NOT NULL DEFAULT (datetime ('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime ('now'))
   );

@@ -2,4 +2,10 @@
 
 export type AnyModel = Note;
 
-export type Note = { model: "note", id: string, createdAt: string, updatedAt: string, content: string, };
+export type Note = {
+  model: 'note';
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  content: string;
+};

@@ -1,6 +1,6 @@
 import type { ChangeEvent } from 'react';
 import TextareaAutosize from 'react-textarea-autosize';
-import { cn } from '~/utils/classname';
+import { cn } from '~/lib/classname';
 
 type AutogrowTextareaProps = {
   id?: string;

@@ -1,5 +1,5 @@
 import { forwardRef, type HTMLAttributes } from 'react';
-import { cn } from '~/utils/classname';
+import { cn } from '~/lib/classname';
 
 type DividerProps = HTMLAttributes<HTMLDivElement>;
 

@@ -1,4 +1,4 @@
-#![allow(deprecated, unexpected_cfgs)]
+#![allow(deprecated)]
 
 use objc::{msg_send, sel, sel_impl};
 use tauri::{Emitter, Runtime, WebviewWindow};
@@ -23,23 +23,12 @@ fn position_traffic_lights(
         return;
     }
 
-    use cocoa::appkit::{NSView, NSWindow, NSWindowButton, NSWindowStyleMask};
-    use cocoa::base::{NO, YES};
+    use cocoa::appkit::{NSView, NSWindow, NSWindowButton};
     use cocoa::foundation::NSRect;
 
     let ns_window = ns_window_handle.0 as cocoa::base::id;
-
+    #[allow(unexpected_cfgs)]
     unsafe {
-        let current_style_mask: NSWindowStyleMask =
-            msg_send![ns_window, styleMask];
-        let required_style = current_style_mask
-            | NSWindowStyleMask::NSTitledWindowMask
-            | NSWindowStyleMask::NSClosableWindowMask
-            | NSWindowStyleMask::NSMiniaturizableWindowMask
-            | NSWindowStyleMask::NSResizableWindowMask; // This enables the zoom button
-
-        let _: () = msg_send![ns_window, setStyleMask: required_style];
-
         let close = ns_window
             .standardWindowButton_(NSWindowButton::NSWindowCloseButton);
         let miniaturize = ns_window
@@ -47,73 +36,34 @@ fn position_traffic_lights(
         let zoom =
             ns_window.standardWindowButton_(NSWindowButton::NSWindowZoomButton);
 
-        if close == cocoa::base::nil {
-            println!("Close button is nil!");
-        }
-        if miniaturize == cocoa::base::nil {
-            println!("Minimize button is nil!");
-        }
-        if zoom == cocoa::base::nil {
-            println!("Zoom button is nil!");
-        }
+        let _: () = msg_send![miniaturize, setEnabled: false];
+        let _: () = msg_send![zoom, setEnabled: false];
 
-        if close != cocoa::base::nil {
-            let _: () = msg_send![close, setEnabled: YES];
-            let _: () = msg_send![close, setHidden: NO];
-        }
+        let title_bar_container_view = close.superview().superview();
 
-        if miniaturize != cocoa::base::nil {
-            let _: () = msg_send![miniaturize, setHidden: NO];
-            let _: () = msg_send![miniaturize, setEnabled: NO];
-        }
+        let close_rect: NSRect = msg_send![close, frame];
+        let button_height = close_rect.size.height;
 
-        if zoom != cocoa::base::nil {
-            let _: () = msg_send![zoom, setHidden: NO];
-            let _: () = msg_send![zoom, setEnabled: NO];
-        }
+        let title_bar_frame_height = button_height + y;
+        let mut title_bar_rect = NSView::frame(title_bar_container_view);
+        title_bar_rect.size.height = title_bar_frame_height;
+        title_bar_rect.origin.y =
+            NSView::frame(ns_window).size.height - title_bar_frame_height;
+        let _: () =
+            msg_send![title_bar_container_view, setFrame: title_bar_rect];
 
-        if close != cocoa::base::nil {
-            let title_bar_container_view = close.superview().superview();
+        let window_buttons = vec![close, miniaturize, zoom];
+        let space_between =
+            NSView::frame(miniaturize).origin.x - NSView::frame(close).origin.x;
 
-            let close_rect: NSRect = msg_send![close, frame];
-            let button_height = close_rect.size.height;
-
-            let title_bar_frame_height = button_height + y;
-            let mut title_bar_rect = NSView::frame(title_bar_container_view);
-            title_bar_rect.size.height = title_bar_frame_height;
-            title_bar_rect.origin.y =
-                NSView::frame(ns_window).size.height - title_bar_frame_height;
-            let _: () =
-                msg_send![title_bar_container_view, setFrame: title_bar_rect];
-
-            let mut window_buttons = Vec::new();
-            if close != cocoa::base::nil {
-                window_buttons.push(close);
-            }
-            if miniaturize != cocoa::base::nil {
-                window_buttons.push(miniaturize);
-            }
-            if zoom != cocoa::base::nil {
-                window_buttons.push(zoom);
-            }
-
-            let space_between = if window_buttons.len() > 1
-                && miniaturize != cocoa::base::nil
-            {
-                NSView::frame(miniaturize).origin.x
-                    - NSView::frame(close).origin.x
-            } else {
-                20.0
-            };
-
-            for (i, button) in window_buttons.into_iter().enumerate() {
-                let mut rect: NSRect = NSView::frame(button);
-                rect.origin.x = x + (i as f64 * space_between);
-                button.setFrameOrigin(rect.origin);
-            }
+        for (i, button) in window_buttons.into_iter().enumerate() {
+            let mut rect: NSRect = NSView::frame(button);
+            rect.origin.x = x + (i as f64 * space_between);
+            button.setFrameOrigin(rect.origin);
         }
     }
 }
+
 #[derive(Debug)]
 struct WindowState<R: Runtime> {
     window: WebviewWindow<R>,

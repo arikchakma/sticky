@@ -2,7 +2,7 @@ use flexi_logger::LogSpecification;
 use flexi_logger::{Age, Cleanup, Criterion, FileSpec, Logger, Naming};
 use log::{error, warn};
 use sticky_models::models::Note;
-use sticky_models::queries::{get_note, list_notes, upsert_note};
+use sticky_models::queries::{delete_note, get_note, list_notes, upsert_note};
 use tauri::{
     App, AppHandle, Manager, RunEvent, Runtime, WebviewWindow, WindowEvent,
 };
@@ -65,6 +65,14 @@ async fn cmd_upsert_note<R: Runtime>(
     app_handle: AppHandle<R>,
 ) -> Result<Note, String> {
     upsert_note(&app_handle, note).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn cmd_delete_note<R: Runtime>(
+    note_id: String,
+    app_handle: AppHandle<R>,
+) -> Result<(), String> {
+    delete_note(&app_handle, &note_id).await.map_err(|e| e.to_string())
 }
 
 // Custom colored format for logging
@@ -169,6 +177,7 @@ pub fn run() {
                 // .skip_initial_state(&format!("{MAIN_WINDOW_PREFIX}0"))
                 .build(),
         )
+        .plugin(tauri_plugin_dialog::init())
         .plugin(sticky_models::plugin::init())
         .setup(|app_handle: &mut App| {
             debug_log!("Setting up Tauri application");
@@ -184,7 +193,8 @@ pub fn run() {
             cmd_new_main_window,
             cmd_list_notes,
             cmd_get_note,
-            cmd_upsert_note
+            cmd_upsert_note,
+            cmd_delete_note,
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")

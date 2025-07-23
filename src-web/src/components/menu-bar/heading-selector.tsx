@@ -5,7 +5,7 @@ import {
   Heading3Icon,
   HeadingIcon,
 } from 'lucide-react';
-import { cn } from '~/utils/classname';
+import { cn } from '~/lib/classname';
 import { Button } from '../ui/button';
 import {
   DropdownMenu,

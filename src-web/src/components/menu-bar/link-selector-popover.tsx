@@ -1,6 +1,6 @@
 import { ArrowRightIcon, LinkIcon, XIcon } from 'lucide-react';
 import { useRef, useState } from 'react';
-import { cn } from '~/utils/classname';
+import { cn } from '~/lib/classname';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';

@@ -1,7 +1,7 @@
 use crate::error::Result;
 use crate::models::{ModelType, Note, NoteIden};
 use crate::plugin::SqliteConnection;
-use chrono::{NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 use nanoid::nanoid;
 use sea_query::ColumnRef::Asterisk;
 use sea_query::Keyword::CurrentTimestamp;
@@ -9,7 +9,9 @@ use sea_query::{Expr, OnConflict, Order, Query, SqliteQueryBuilder};
 use sea_query_rusqlite::RusqliteBinder;
 use tauri::{AppHandle, Manager, Runtime};
 
-pub async fn list_notes<R: Runtime>(app_handle: &AppHandle<R>) -> Result<Vec<Note>> {
+pub async fn list_notes<R: Runtime>(
+    app_handle: &AppHandle<R>,
+) -> Result<Vec<Note>> {
     let dbm = &*app_handle.state::<SqliteConnection>();
     let db = dbm.0.lock().await.get().unwrap();
 
@@ -23,7 +25,10 @@ pub async fn list_notes<R: Runtime>(app_handle: &AppHandle<R>) -> Result<Vec<Not
     Ok(items.map(|v| v.unwrap()).collect())
 }
 
-pub async fn get_note<R: Runtime>(app_handle: &AppHandle<R>, id: &str) -> Result<Note> {
+pub async fn get_note<R: Runtime>(
+    app_handle: &AppHandle<R>,
+    id: &str,
+) -> Result<Note> {
     let dbm = &*app_handle.state::<SqliteConnection>();
     let db = dbm.0.lock().await.get().unwrap();
 
@@ -36,7 +41,10 @@ pub async fn get_note<R: Runtime>(app_handle: &AppHandle<R>, id: &str) -> Result
     Ok(stmt.query_row(&*params.as_params(), |row| row.try_into())?)
 }
 
-pub async fn upsert_note<R: Runtime>(app_handle: &AppHandle<R>, note: Note) -> Result<Note> {
+pub async fn upsert_note<R: Runtime>(
+    app_handle: &AppHandle<R>,
+    note: Note,
+) -> Result<Note> {
     let id = match note.id.as_str() {
         "" => generate_model_id(ModelType::TypeNote),
         _ => note.id.to_string(),
@@ -71,11 +79,15 @@ pub async fn upsert_note<R: Runtime>(app_handle: &AppHandle<R>, note: Note) -> R
         .build_rusqlite(SqliteQueryBuilder);
 
     let mut stmt = db.prepare(sql.as_str())?;
-    let note: Note = stmt.query_row(&*params.as_params(), |row| row.try_into())?;
+    let note: Note =
+        stmt.query_row(&*params.as_params(), |row| row.try_into())?;
     Ok(note)
 }
 
-pub async fn delete_note<R: Runtime>(app_handle: &AppHandle<R>, id: &str) -> Result<()> {
+pub async fn delete_note<R: Runtime>(
+    app_handle: &AppHandle<R>,
+    id: &str,
+) -> Result<()> {
     let dbm = &*app_handle.state::<SqliteConnection>();
     let db = dbm.0.lock().await.get().unwrap();
 
@@ -96,10 +108,11 @@ pub fn generate_model_id(model: ModelType) -> String {
 
 pub fn generate_id() -> String {
     let alphabet: [char; 57] = [
-        '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j',
-        'k', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'A', 'B', 'C',
-        'D', 'E', 'F', 'G', 'H', 'J', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W',
-        'X', 'Y', 'Z',
+        '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
+        'g', 'h', 'i', 'j', 'k', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u',
+        'v', 'w', 'x', 'y', 'z', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J',
+        'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y',
+        'Z',
     ];
 
     nanoid!(10, &alphabet)
@@ -108,9 +121,9 @@ pub fn generate_id() -> String {
 // generate the timestamp for an upsert operation
 // if the timestamp is 0, use the current time
 // otherwise, use the provided timestamp
-fn timestamp_for_upsert(dt: NaiveDateTime) -> NaiveDateTime {
-    if dt.and_utc().timestamp() == 0 {
-        Utc::now().naive_utc()
+fn timestamp_for_upsert(dt: DateTime<Utc>) -> DateTime<Utc> {
+    if dt.timestamp() == 0 {
+        Utc::now()
     } else {
         dt
     }

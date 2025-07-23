@@ -1,7 +1,7 @@
 import { AlertCircleIcon, Loader2Icon, X } from 'lucide-react';
 import { Dialog as DialogPrimitive } from 'radix-ui';
 import * as React from 'react';
-import { cn } from '~/utils/classname';
+import { cn } from '~/lib/classname';
 import { headingVariants, type HeadingVariantProps } from './heading';
 import { textVariants, type TextVariantProps } from './text';
 

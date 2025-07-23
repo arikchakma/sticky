@@ -21,7 +21,6 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
     tauri::plugin::Builder::new("sticky_models")
         .setup(|app_handle, _api| {
             let app_path = app_handle.path().app_data_dir().unwrap();
-            // let db_file_path = app_path.join("db.sqlite");
             create_dir_all(app_path.clone())
                 .expect("Problem creating App directory!");
 

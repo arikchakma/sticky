@@ -1,5 +1,5 @@
 import type { Note } from '@sticky/models';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { invoke } from '@tauri-apps/api/core';
 import {
@@ -27,8 +27,11 @@ import { useInterval } from '~/hooks/use-interval';
 import { useOnWindowResize } from '~/hooks/use-on-window-resize';
 import { getIsManuallyResized, setIsManuallyResized } from '~/lib/autosize';
 import { CodeBlock } from '~/lib/highlighter';
+import { clamp } from '~/lib/number';
 import { getTransactionType } from '~/lib/transaction';
-import { clamp } from '~/utils/number';
+import { listNotesOptions } from '~/queries/notes';
+import defaultNoteContent from '~/components/default-note-content.json';
+import { useOnFocusChanged } from '~/hooks/use-on-focus-changed';
 
 const EDITOR_CONTENT_ID = 'editor-content';
 
@@ -189,8 +192,13 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
     },
   });
 
+  const queryClient = useQueryClient();
   const { mutate: upsertNote, isPending: isUpsertingNote } = useMutation({
     mutationFn: (content: JSONContent) => {
+      if (!currentNoteId) {
+        return Promise.resolve();
+      }
+
       const details = {
         id: currentNoteId,
         content: JSON.stringify(content),
@@ -199,6 +207,9 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       return invoke('cmd_upsert_note', {
         note: details,
       });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(listNotesOptions());
     },
   });
 
@@ -250,31 +261,11 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
     const newNote = await invoke<Note>('cmd_upsert_note', {
       note: {
         model: 'note',
-        content: JSON.stringify({
-          type: 'doc',
-          content: [
-            {
-              type: 'taskList',
-              content: [
-                {
-                  type: 'taskItem',
-                  attrs: {
-                    checked: false,
-                  },
-                  content: [
-                    {
-                      type: 'paragraph',
-                      content: [{ type: 'text', text: 'Mark it as done!!' }],
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
-        }),
+        content: JSON.stringify(defaultNoteContent),
       },
     });
 
+    queryClient.invalidateQueries(listNotesOptions());
     await invoke('cmd_new_main_window', {
       url: `/${newNote.id}`,
     });
@@ -375,14 +366,33 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
     [editor]
   );
 
-  const handleNoteClick = useCallback(async (note: Note) => {
-    navigate({
-      to: '/$noteId',
-      params: {
-        noteId: note.id,
-      },
-    });
+  const restoreWindowSize = useCallback(async () => {
+    const prevWindowSize = prevWindowSizeRef.current;
+    if (!prevWindowSize) {
+      return;
+    }
+
+    const currentWindow = getCurrentWindow();
+    await currentWindow.setSize(prevWindowSize);
   }, []);
+
+  const handleDeleteNote = useCallback(async () => {
+    await restoreWindowSize();
+    navigate({ to: '/new', replace: true });
+  }, [navigate, restoreWindowSize]);
+
+  const handleNoteClick = useCallback(
+    async (note: Note) => {
+      await restoreWindowSize();
+      navigate({
+        to: '/$noteId',
+        params: {
+          noteId: note.id,
+        },
+      });
+    },
+    [navigate, restoreWindowSize]
+  );
 
   const handleOpenChange = useCallback(async (open: boolean) => {
     const prevWindowSize = prevWindowSizeRef.current;
@@ -421,6 +431,10 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
     isProgrammaticResizeRef.current = true;
   }, []);
 
+  useOnFocusChanged(() => {
+    queryClient.invalidateQueries(listNotesOptions());
+  });
+
   return (
     <main>
       <Header
@@ -430,6 +444,7 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
         onDoubleClick={handleDoubleClick}
         onNoteClick={handleNoteClick}
         onOpenChange={handleOpenChange}
+        onNoteDelete={handleDeleteNote}
       />
 
       <div className="mt-[var(--window-menu-height)] flex h-[calc(100vh-var(--window-menu-height))] flex-col">

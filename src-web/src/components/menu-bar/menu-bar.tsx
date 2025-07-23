@@ -1,7 +1,7 @@
 import { useEditorState, type Editor } from '@tiptap/react';
 import { TypeIcon, XCircleIcon } from 'lucide-react';
 import { forwardRef, useState } from 'react';
-import { cn } from '~/utils/classname';
+import { cn } from '~/lib/classname';
 import { Button } from '../ui/button';
 import { MenuBarItems } from './menu-bar-items';
 

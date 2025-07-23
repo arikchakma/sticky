@@ -1,4 +1,4 @@
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use rusqlite::Row;
 use sea_query::Iden;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -12,8 +12,8 @@ pub struct Note {
     #[ts(type = "\"note\"")]
     pub model: String,
     pub id: String,
-    pub created_at: NaiveDateTime,
-    pub updated_at: NaiveDateTime,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
     pub content: String,
 }
 
@@ -80,12 +80,19 @@ impl<'de> Deserialize<'de> for AnyModel {
         let model = value.as_object().unwrap();
 
         let model = match model.get("model") {
-            Some(m) if m == "note" => AnyModel::Note(serde_json::from_value(value).unwrap()),
+            Some(m) if m == "note" => {
+                AnyModel::Note(serde_json::from_value(value).unwrap())
+            }
             Some(m) => {
-                return Err(serde::de::Error::custom(format!("Unknown model {}", m)));
+                return Err(serde::de::Error::custom(format!(
+                    "Unknown model {}",
+                    m
+                )));
             }
             None => {
-                return Err(serde::de::Error::custom("Missing or invalid model"));
+                return Err(serde::de::Error::custom(
+                    "Missing or invalid model",
+                ));
             }
         };
 
