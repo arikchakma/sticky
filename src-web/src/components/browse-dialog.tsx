@@ -5,6 +5,7 @@ import { LayersIcon, Loader2Icon, StickyNoteIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getTitleFromContent } from '~/lib/content';
 import { listNotesOptions } from '~/queries/notes';
+import { NoteItem } from './note-item';
 import { Button } from './ui/button';
 import {
   Dialog,
@@ -16,7 +17,6 @@ import {
 } from './ui/dialog';
 import { Input } from './ui/input';
 import { Text } from './ui/text';
-import { NoteItem } from './note-item';
 
 export type BrowseDialogProps = {
   activeNoteId?: string;

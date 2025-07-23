@@ -24,16 +24,18 @@ import { Divider } from '~/components/divider';
 import { Header, HEADER_ID } from '~/components/header';
 import { MenuBar } from '~/components/menu-bar/menu-bar';
 import { useInterval } from '~/hooks/use-interval';
+import { useOnFocusChanged } from '~/hooks/use-on-focus-changed';
 import { useOnWindowResize } from '~/hooks/use-on-window-resize';
 import { getIsManuallyResized, setIsManuallyResized } from '~/lib/autosize';
+import defaultNoteContent from '~/lib/default-note-content.json';
 import { CodeBlock } from '~/lib/highlighter';
 import { clamp } from '~/lib/number';
 import { getTransactionType } from '~/lib/transaction';
 import { listNotesOptions } from '~/queries/notes';
-import defaultNoteContent from '~/lib/default-note-content.json';
-import { useOnFocusChanged } from '~/hooks/use-on-focus-changed';
 
 const EDITOR_CONTENT_ID = 'editor-content';
+const DEFAULT_WINDOW_HEIGHT = 115;
+const DEFAULT_WINDOW_WIDTH = 400;
 
 type SkeletonEditorProps = {
   noteId?: string;
@@ -163,7 +165,7 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       const currentSize = await currentWindow.outerSize();
 
       const MAX_HEIGHT = Math.floor(screenHeight * 0.75);
-      const MIN_HEIGHT = 115 * scaleFactor;
+      const MIN_HEIGHT = DEFAULT_WINDOW_HEIGHT * scaleFactor;
 
       const calculatedHeight = Math.max(MIN_HEIGHT, totalHeight * scaleFactor);
       const newHeight = Math.ceil(Math.min(MAX_HEIGHT, calculatedHeight));
@@ -284,7 +286,7 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
     queryClient.invalidateQueries(listNotesOptions());
     await invoke('cmd_new_main_window', {
       url: `/${newNote.id}`,
-      size: [400, 115],
+      size: [DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT],
     });
   }, [editor]);
 
@@ -319,7 +321,7 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       const currentSize = await currentWindow.outerSize();
 
       const MAX_HEIGHT = Math.floor(screenHeight * 0.75);
-      const MIN_HEIGHT = 115 * scaleFactor;
+      const MIN_HEIGHT = DEFAULT_WINDOW_HEIGHT * scaleFactor;
 
       const calculatedHeight = Math.max(MIN_HEIGHT, totalHeight * scaleFactor);
       const newHeight = Math.ceil(Math.min(MAX_HEIGHT, calculatedHeight));

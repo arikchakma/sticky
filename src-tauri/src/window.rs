@@ -8,7 +8,7 @@ use crate::debug_log;
 pub const MAIN_WINDOW_PREFIX: &str = "main_";
 pub const OTHER_WINDOW_PREFIX: &str = "other_";
 
-pub const DEFAULT_FIRST_MAIN_WINDOW_HEIGHT: f64 = 356.0;
+pub const DEFAULT_FIRST_MAIN_WINDOW_HEIGHT: f64 = 190.0;
 pub const DEFAULT_WINDOW_WIDTH: f64 = 400.0;
 pub const DEFAULT_WINDOW_HEIGHT: f64 = 700.0;
 

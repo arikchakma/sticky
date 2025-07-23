@@ -19,35 +19,7 @@
         { "type": "text", "marks": [{ "type": "bold" }], "text": "Sticky" },
         {
           "type": "text",
-          "text": " — your fast and lightweight scratchpad for capturing ideas, meeting notes, tasks, or anything you want to jot down quickly."
-        }
-      ]
-    },
-    { "type": "horizontalRule" },
-    {
-      "type": "heading",
-      "attrs": { "level": 2 },
-      "content": [
-        {
-          "type": "text",
-          "marks": [{ "type": "bold" }],
-          "text": "📝 Browsing & Managing Notes"
-        }
-      ]
-    },
-    {
-      "type": "paragraph",
-      "content": [
-        {
-          "type": "text",
-          "text": "Use the search bar or keyboard shortcuts to instantly find and switch between your notes."
-        },
-        { "type": "hardBreak" },
-        { "type": "text", "text": "With " },
-        { "type": "text", "marks": [{ "type": "bold" }], "text": "Sticky" },
-        {
-          "type": "text",
-          "text": ", you can create as many notes as you like — no limits, no paywalls."
+          "text": " — your fast and lightweight notepad for quickly writing down your ideas, notes, tasks, or anything else."
         }
       ]
     }

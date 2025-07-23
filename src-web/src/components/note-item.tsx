@@ -1,14 +1,14 @@
-import { Button } from './ui/button';
-import { Text } from './ui/text';
-import { Trash2Icon } from 'lucide-react';
-import { confirm } from '@tauri-apps/plugin-dialog';
 import type { Note } from '@sticky/models';
-import { getRelativeTime } from '~/lib/date';
-import { cn } from '~/lib/classname';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { invoke } from '@tauri-apps/api/core';
-import { listNotesOptions } from '~/queries/notes';
+import { confirm } from '@tauri-apps/plugin-dialog';
+import { Trash2Icon } from 'lucide-react';
 import { toast } from 'sonner';
+import { cn } from '~/lib/classname';
+import { getRelativeTime } from '~/lib/date';
+import { listNotesOptions } from '~/queries/notes';
+import { Button } from './ui/button';
+import { Text } from './ui/text';
 
 export type NoteItemProps = {
   currentNoteId?: string;
