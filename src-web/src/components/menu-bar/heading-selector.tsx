@@ -5,6 +5,7 @@ import {
   Heading3Icon,
   HeadingIcon,
 } from 'lucide-react';
+import { cn } from '~/lib/classname';
 import { Button } from '../ui/button';
 import {
   DropdownMenu,
@@ -12,7 +13,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
-import { cn } from '~/utils/classname';
 
 type HeadingSelectorProps = {
   isActive: boolean;
@@ -30,34 +30,34 @@ export function HeadingSelector(props: HeadingSelectorProps) {
           variant="ghost"
           size="icon"
           className={cn(
-            'h-7 text-zinc-500 gap-0 data-[state=open]:text-black hover:text-zinc-500',
+            'h-7 w-auto gap-0 text-zinc-500 hover:text-zinc-500 data-[state=open]:text-black',
             isActive && 'text-black'
           )}
         >
-          <HeadingIcon className="w-4 h-4" />
-          <ChevronUpIcon className="w-3 h-3" />
+          <HeadingIcon className="h-4 w-4" />
+          <ChevronUpIcon className="h-3 w-3" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="gap-0.5 flex flex-col">
+      <DropdownMenuContent align="start" className="flex flex-col gap-0.5">
         <DropdownMenuItem
           onClick={() => onSelect(1)}
           className={cn(currentLevel === 1 && 'bg-zinc-100')}
         >
-          <Heading1Icon className="w-4 h-4" />
+          <Heading1Icon className="h-4 w-4" />
           <span>Heading 1</span>
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={() => onSelect(2)}
           className={cn(currentLevel === 2 && 'bg-zinc-100')}
         >
-          <Heading2Icon className="w-4 h-4" />
+          <Heading2Icon className="h-4 w-4" />
           <span>Heading 2</span>
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={() => onSelect(3)}
           className={cn(currentLevel === 3 && 'bg-zinc-100')}
         >
-          <Heading3Icon className="w-4 h-4" />
+          <Heading3Icon className="h-4 w-4" />
           <span>Heading 3</span>
         </DropdownMenuItem>
       </DropdownMenuContent>

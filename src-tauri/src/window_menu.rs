@@ -1,11 +1,13 @@
 use tauri::menu::{
-    AboutMetadata, Menu, MenuItemBuilder, PredefinedMenuItem, Submenu, HELP_SUBMENU_ID,
+    AboutMetadata, Menu, MenuItemBuilder, PredefinedMenuItem, Submenu,
     WINDOW_SUBMENU_ID,
 };
 pub use tauri::AppHandle;
 use tauri::Runtime;
 
-pub fn app_menu<R: Runtime>(app_handle: &AppHandle<R>) -> tauri::Result<Menu<R>> {
+pub fn app_menu<R: Runtime>(
+    app_handle: &AppHandle<R>,
+) -> tauri::Result<Menu<R>> {
     let pkg_info = app_handle.package_info();
     let config = app_handle.config();
 
@@ -22,22 +24,21 @@ pub fn app_menu<R: Runtime>(app_handle: &AppHandle<R>) -> tauri::Result<Menu<R>>
         WINDOW_SUBMENU_ID,
         "Window",
         true,
-        &[
-            &PredefinedMenuItem::minimize(app_handle, None)?,
-            &PredefinedMenuItem::maximize(app_handle, None)?,
-            &PredefinedMenuItem::separator(app_handle)?,
-            &PredefinedMenuItem::close_window(app_handle, None)?,
-        ],
+        &[&PredefinedMenuItem::close_window(app_handle, None)?],
     )?;
 
-    let help_menu = Submenu::with_id_and_items(
+    let edit_menu = Submenu::with_items(
         app_handle,
-        HELP_SUBMENU_ID,
-        "Help",
+        "Edit",
         true,
         &[
-            &MenuItemBuilder::with_id("open_feedback".to_string(), "Give Feedback")
-                .build(app_handle)?,
+            &PredefinedMenuItem::undo(app_handle, None)?,
+            &PredefinedMenuItem::redo(app_handle, None)?,
+            &PredefinedMenuItem::separator(app_handle)?,
+            &PredefinedMenuItem::cut(app_handle, None)?,
+            &PredefinedMenuItem::copy(app_handle, None)?,
+            &PredefinedMenuItem::paste(app_handle, None)?,
+            &PredefinedMenuItem::select_all(app_handle, None)?,
         ],
     )?;
 
@@ -49,7 +50,11 @@ pub fn app_menu<R: Runtime>(app_handle: &AppHandle<R>) -> tauri::Result<Menu<R>>
                 pkg_info.name.clone(),
                 true,
                 &[
-                    &PredefinedMenuItem::about(app_handle, None, Some(about_metadata))?,
+                    &PredefinedMenuItem::about(
+                        app_handle,
+                        None,
+                        Some(about_metadata),
+                    )?,
                     &PredefinedMenuItem::separator(app_handle)?,
                     &PredefinedMenuItem::services(app_handle, None)?,
                     &PredefinedMenuItem::separator(app_handle)?,
@@ -68,8 +73,8 @@ pub fn app_menu<R: Runtime>(app_handle: &AppHandle<R>) -> tauri::Result<Menu<R>>
                     .build(app_handle)?,
                 ],
             )?,
+            &edit_menu,
             &window_menu,
-            &help_menu,
         ],
     )?;
 

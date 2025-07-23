@@ -1,0 +1,25 @@
+<h1>
+   <picture height="120px">
+      <source media="(prefers-color-scheme: dark)" srcset="https://github.com/user-attachments/assets/c906b512-dab5-4a63-a8ef-9f56ea941deb">
+      <source media="(prefers-color-scheme: light)" srcset="https://github.com/user-attachments/assets/fdf91e90-c359-462c-bf4d-06754bbd8a03">
+      <img alt="Sticky" height="120px" src="https://github.com/user-attachments/assets/fdf91e90-c359-462c-bf4d-06754bbd8a03">
+   </picture>
+   <br> Sticky
+</h1>
+
+A fast and lightweight notepad for quickly writing down your ideas, notes, tasks, or anything else.
+
+## Contributions
+
+Contributions are very welcome! Submit pull requests, create issues, or help improve documentation.
+
+To get a local development environment up and running:
+
+1. Clone the repo: `git clone https://github.com/arikchakma/sticky`
+2. Change directory: `cd sticky`
+3. Install dependencies: `pnpm install`
+4. Start the dev server: `pnpm tauri:dev`
+
+## License
+
+MIT &copy; [Arik Chakma](https://twitter.com/imarikchakma)

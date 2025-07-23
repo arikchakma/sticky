@@ -14,8 +14,8 @@ import {
   UnderlineIcon,
 } from 'lucide-react';
 import { Button } from '../ui/button';
-import { LinkSelectorPopover } from './link-selector-popover';
 import { HeadingSelector } from './heading-selector';
+import { LinkSelectorPopover } from './link-selector-popover';
 
 type MenuBarItemsProps = {
   editor: Editor;
@@ -183,9 +183,9 @@ export function MenuBarItems(props: MenuBarItemsProps) {
             key={item.title}
             onClick={item.action}
             data-active={item.isActive}
-            className="size-7 data-[active=true]:text-black text-zinc-500 hover:text-zinc-500"
+            className="size-7 text-zinc-500 hover:text-zinc-500 data-[active=true]:text-black"
           >
-            <item.icon className="w-4 h-4" />
+            <item.icon className="h-4 w-4" />
           </Button>
         );
       })}

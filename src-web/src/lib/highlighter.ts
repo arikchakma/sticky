@@ -5,11 +5,11 @@ import {
   type Highlighter,
 } from 'shiki';
 
+import { invariant } from '@tanstack/react-router';
 import { CodeBlock as CodeBlockExtension } from '@tiptap/extension-code-block';
 import { createHighlightPlugin } from 'prosemirror-highlight';
 import { createParser, type Parser } from 'prosemirror-highlight/shiki';
 import { shikiTheme } from './theme';
-import { invariant } from '@tanstack/react-router';
 
 let highlighter: Highlighter | undefined;
 let parser: Parser | undefined;

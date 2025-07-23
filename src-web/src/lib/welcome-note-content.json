@@ -1,0 +1,27 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "heading",
+      "attrs": { "level": 1 },
+      "content": [
+        {
+          "type": "text",
+          "marks": [{ "type": "bold" }],
+          "text": "Welcome to Sticky"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        { "type": "text", "text": "Thanks for trying " },
+        { "type": "text", "marks": [{ "type": "bold" }], "text": "Sticky" },
+        {
+          "type": "text",
+          "text": " — your fast and lightweight notepad for quickly writing down your ideas, notes, tasks, or anything else."
+        }
+      ]
+    }
+  ]
+}

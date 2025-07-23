@@ -1,7 +1,7 @@
-import * as React from 'react';
-import { Dialog as SheetPrimitive } from 'radix-ui';
 import { XIcon } from 'lucide-react';
-import { cn } from '~/utils/classname';
+import { Dialog as SheetPrimitive } from 'radix-ui';
+import * as React from 'react';
+import { cn } from '~/lib/classname';
 import { headingVariants, type HeadingVariantProps } from './heading';
 import { textVariants, type TextVariantProps } from './text';
 
@@ -140,11 +140,11 @@ function SheetDescription({
 
 export {
   Sheet,
-  SheetTrigger,
   SheetClose,
   SheetContent,
-  SheetHeader,
-  SheetFooter,
-  SheetTitle,
   SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
 };

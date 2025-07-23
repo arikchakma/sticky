@@ -1,5 +1,5 @@
 {
-  "name": "@notes/app",
+  "name": "@sticky/app",
   "private": true,
   "type": "module",
   "scripts": {
@@ -11,12 +11,14 @@
     "tauri": "tauri"
   },
   "dependencies": {
+    "@sticky/models": "workspace:*",
     "@tailwindcss/vite": "^4.1.11",
     "@tanstack/react-query": "^5.81.5",
     "@tanstack/react-router": "^1.121.2",
     "@tanstack/react-router-devtools": "^1.121.2",
     "@tanstack/router-plugin": "^1.121.2",
     "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-dialog": "^2.3.1",
     "@tauri-apps/plugin-opener": "^2",
     "@tiptap/extension-character-count": "^3.0.7",
     "@tiptap/extension-code-block": "^3.0.7",
@@ -29,6 +31,7 @@
     "clsx": "^2.1.1",
     "isbot": "^5.1.28",
     "lucide-react": "^0.525.0",
+    "luxon": "^3.7.1",
     "prosemirror-highlight": "^0.13.0",
     "radix-ui": "^1.4.2",
     "react": "^19.0.0",
@@ -42,6 +45,7 @@
   "devDependencies": {
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.2.0",
+    "@types/luxon": "^3.6.2",
     "@types/node": "^24.0.15",
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
@@ -49,6 +53,7 @@
     "jsdom": "^26.0.0",
     "typescript": "^5.7.2",
     "vite": "^6.1.0",
+    "vite-plugin-top-level-await": "^1.6.0",
     "vitest": "^3.0.5",
     "web-vitals": "^4.2.4"
   }

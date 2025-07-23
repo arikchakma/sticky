@@ -1,5 +1,8 @@
+[workspace]
+members = ["sticky-models"]
+
 [package]
-name = "notes"
+name = "sticky"
 version = "0.1.0"
 description = "Better notes for you"
 authors = ["you"]
@@ -11,14 +14,14 @@ edition = "2021"
 # The `_lib` suffix may seem redundant but it is necessary
 # to make the lib name unique and wouldn't conflict with the bin name.
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
-name = "notes_lib"
+name = "sticky_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+tauri = { workspace = true, features = [] }
 tauri-plugin-opener = "2"
 tauri-plugin-process = "2"
 tauri-plugin-updater = "2"
@@ -26,15 +29,23 @@ tauri-plugin-window-state = "2"
 tauri-plugin-os = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-dialog = "2"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
 chrono = "0.4.41"
 tokio = { version = "1.46.1", features = ["full"] }
 flexi_logger = "0.29"
 log = "0.4.27"
+sticky-models = { workspace = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 cocoa = "0.26.0"
 hex_color = "3.0.0"
 objc = "0.2.7"
 rand = "0.9.0"
+
+[workspace.dependencies]
+tauri = "2"
+reqwest = "0.12.12"
+serde = "1.0.215"
+serde_json = "1.0.132"
+thiserror = "2.0.3"
+ts-rs = "10.0.0"
+sticky-models = { path = "sticky-models" }

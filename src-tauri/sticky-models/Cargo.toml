@@ -1,0 +1,23 @@
+[package]
+name = "sticky-models"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+chrono = { version = "0.4.38", features = ["serde"] }
+hex = "0.4.3"
+include_dir = "0.7"
+log = "0.4.22"
+nanoid = "0.4.0"
+r2d2 = "0.8.10"
+r2d2_sqlite = { version = "0.25.0" }
+rusqlite = { version = "0.32.1", features = ["bundled", "chrono"] }
+sea-query = { version = "0.32.1", features = ["with-chrono", "attr"] }
+sea-query-rusqlite = { version = "0.7.0", features = ["with-chrono"] }
+serde = { version = "1.0.204", features = ["derive"] }
+serde_json = "1.0.122"
+sha2 = "0.10.9"
+tauri = { workspace = true }
+thiserror = "2.0.11"
+ts-rs = { workspace = true, features = ["chrono-impl", "serde-json-impl"] }

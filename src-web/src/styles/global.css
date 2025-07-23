@@ -12,11 +12,33 @@
   --window-menu-height: 36px;
 }
 
-body {
-  @apply selection:bg-red-200/70 bg-white;
+html,
+body,
+#root {
+  @apply h-full w-full overflow-hidden bg-white caret-red-500 accent-red-500 selection:bg-red-200/70;
+}
+
+:not(iframe) {
+  &::-webkit-scrollbar,
+  &::-webkit-scrollbar-corner {
+    @apply size-2 bg-transparent;
+  }
+
+  &::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    @apply rounded-sm bg-gray-200;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    @apply opacity-40!;
+  }
 }
 
 @utility hide-scrollbar {
+  &::-webkit-scrollbar-corner,
   &::-webkit-scrollbar {
     display: none;
   }
@@ -27,4 +49,17 @@ body {
 
 @utility shadow-border {
   box-shadow: 0 0 0 1px var(--tw-shadow-color, #00000014);
+}
+
+/* Disable user selection to make it more "app-like" */
+:where(*):not(a, input, textarea):not([contenteditable] *):not(
+    [contenteditable] *
+  )::before,
+:where(*):not(a, input, textarea):not([contenteditable] *):not(
+    [contenteditable] *
+  )::after,
+:where(*):not(a, input, textarea):not([contenteditable] *):not(
+    [contenteditable] *
+  ) {
+  @apply cursor-default select-none;
 }
