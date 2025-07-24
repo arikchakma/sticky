@@ -2,6 +2,7 @@ import type { Note } from '@sticky/models';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { invoke } from '@tauri-apps/api/core';
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import {
   currentMonitor,
   getCurrentWindow,
