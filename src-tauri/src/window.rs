@@ -87,6 +87,12 @@ pub(crate) fn create_window<R: Runtime>(
                 .hidden_title(true)
                 .title_bar_style(TitleBarStyle::Overlay);
         }
+
+        #[cfg(not(target_os = "macos"))]
+        {
+            debug_log!("Disabling titlebar");
+            win_builder = win_builder.decorations(false);
+        }
     }
 
     if let Some((max_width, max_height)) = config.max_size {

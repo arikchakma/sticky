@@ -2,6 +2,7 @@ import type { Note } from '@sticky/models';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { invoke } from '@tauri-apps/api/core';
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import {
   currentMonitor,
   getCurrentWindow,
@@ -283,9 +284,12 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
     });
 
     queryClient.invalidateQueries(listNotesOptions());
-    await invoke('cmd_new_main_window', {
+    await invoke('cmd_new_child_window', {
+      parentWindow: getCurrentWebviewWindow(),
       url: `/${newNote.id}`,
-      size: [DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT],
+      label: `child_${newNote.id}`,
+      title: `Sticky`,
+      innerSize: [DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT],
     });
   }, [editor]);
 
