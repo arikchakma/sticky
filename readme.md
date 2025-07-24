@@ -9,6 +9,8 @@
 
 A fast and lightweight notepad for quickly writing down your ideas, notes, tasks, or anything else.
 
+![App Screenshot](https://github.com/user-attachments/assets/a6795eae-0bdb-41f0-9c51-564533d28514)
+
 ## Contributions
 
 Contributions are very welcome! Submit pull requests, create issues, or help improve documentation.
