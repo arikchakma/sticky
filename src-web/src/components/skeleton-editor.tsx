@@ -95,7 +95,7 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       return;
     }
 
-    editorContent.classList.add('overflow-y-scroll');
+    editorContent.classList.add('overflow-y-auto');
     shouldStopAutoResizeRef.current = true;
     setIsManuallyResized(true);
     editor?.commands?.focus();
@@ -114,7 +114,7 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       !topDivider ||
       !bottomDivider
     ) {
-      return;
+      return undefined;
     }
 
     const rect = editorContent.getBoundingClientRect();
@@ -134,7 +134,7 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
   }
 
   const handleResize = useCallback(
-    async (editor: TiptapEditor, force: boolean = false) => {
+    async (editor: TiptapEditor) => {
       const editorContent = editorContentRef.current;
       const topDivider = topDividerRef.current;
       const bottomDivider = bottomDividerRef.current;
@@ -143,11 +143,10 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       }
 
       const shouldStop = shouldStopAutoResizeRef.current;
-      if (shouldStop && !force) {
+      console.log('SHOULD STOP: ', shouldStop);
+      if (shouldStop) {
         return;
       }
-
-      shouldStopAutoResizeRef.current = false;
 
       const totalHeight = calculateEditorHeight(editor);
       if (totalHeight === undefined) {
@@ -171,15 +170,24 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       const newHeight = Math.ceil(Math.min(MAX_HEIGHT, calculatedHeight));
 
       const hasCrossedMaxHeight = calculatedHeight >= MAX_HEIGHT;
-      editorContent.classList.toggle('overflow-y-scroll', hasCrossedMaxHeight);
+      editorContent.classList.toggle('overflow-y-auto', hasCrossedMaxHeight);
       bottomDivider.style.opacity = '0';
       topDivider.style.opacity = '0';
 
       await currentWindow.setSize(
         new PhysicalSize(currentSize.width, newHeight)
       );
+
+      shouldStopAutoResizeRef.current = false;
+      isProgrammaticResizeRef.current = true;
+      setIsManuallyResized(false);
     },
-    []
+    [
+      calculateEditorHeight,
+      editorContentRef,
+      shouldStopAutoResizeRef,
+      isProgrammaticResizeRef,
+    ]
   );
 
   const isDirtyRef = useRef<boolean>(false);
@@ -201,11 +209,9 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
         return;
       }
 
-      isProgrammaticResizeRef.current = true;
       await handleResize(editor);
     },
-    onUpdate: ({ editor }) => {
-      console.log(JSON.stringify(editor.getJSON()));
+    onUpdate: () => {
       isDirtyRef.current = true;
     },
   });
@@ -326,9 +332,6 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       const calculatedHeight = Math.max(MIN_HEIGHT, totalHeight * scaleFactor);
       const newHeight = Math.ceil(Math.min(MAX_HEIGHT, calculatedHeight));
 
-      shouldStopAutoResizeRef.current = false;
-      setIsManuallyResized(false);
-
       const shouldReposition = currentSize.height === newHeight;
       if (shouldReposition) {
         const x =
@@ -338,19 +341,22 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
 
         await currentWindow.setPosition(new PhysicalPosition(x, y));
         editor.commands.focus();
+        isProgrammaticResizeRef.current = true;
         return;
       }
 
       const hasCrossedMaxHeight = calculatedHeight >= MAX_HEIGHT;
-      editorContent.classList.toggle('overflow-y-scroll', hasCrossedMaxHeight);
+      editorContent.classList.toggle('overflow-y-auto', hasCrossedMaxHeight);
       bottomDivider.style.opacity = '0';
       topDivider.style.opacity = '0';
 
       await currentWindow.setSize(
         new PhysicalSize(currentSize.width, newHeight)
       );
-      editor.commands.focus();
+      shouldStopAutoResizeRef.current = false;
       isProgrammaticResizeRef.current = true;
+      editor.commands.focus();
+      setIsManuallyResized(false);
     },
     [editor]
   );
@@ -459,7 +465,7 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
           id={EDITOR_CONTENT_ID}
           editor={editor}
           ref={editorContentRef}
-          className="cursor-text! flex grow flex-col overflow-y-scroll"
+          className="cursor-text! flex grow flex-col overflow-y-auto"
           onScroll={onScroll}
           onClick={handleContentClick}
         />
