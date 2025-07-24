@@ -105,7 +105,7 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
     editor?.commands?.focus();
   });
 
-  function calculateEditorHeight(currentEditor: TiptapEditor) {
+  const calculateEditorHeight = useCallback((currentEditor: TiptapEditor) => {
     const header = headerRef.current;
     const menuBar = menuBarRef.current;
     const editorDom = currentEditor.view.dom;
@@ -128,7 +128,7 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       topDividerHeight +
       bottomDividerHeight
     );
-  }
+  }, []);
 
   const handleAutoResize = useCallback(
     async (currentEditor: TiptapEditor) => {
