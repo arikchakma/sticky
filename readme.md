@@ -22,6 +22,15 @@ To get a local development environment up and running:
 3. Install dependencies: `pnpm install`
 4. Start the dev server: `pnpm tauri:dev`
 
+## Acknowledgements
+
+I've taken inspiration from the following projects:
+
+- [Raycast Notes](https://www.raycast.com/core-features/notes)
+- [Yaak](https://github.com/mountain-loop/yaak)
+- [Tiptap](https://tiptap.dev/)
+- [Notemap](https://notemap.com/)
+
 ## License
 
 MIT &copy; [Arik Chakma](https://twitter.com/imarikchakma)
