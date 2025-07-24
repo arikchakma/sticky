@@ -69,5 +69,6 @@ jobs:
           releaseName: 'Release __VERSION__'
           releaseBody: '[Changelog __VERSION__](https://sticky.fyi/changelog/__VERSION__)'
           releaseDraft: true
+          includeRelease: true
           prerelease: false
           args: ${{ matrix.args }}
