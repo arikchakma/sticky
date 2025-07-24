@@ -24,6 +24,10 @@
     @apply mt-0;
   }
 
+  :last-child {
+    @apply mb-0!;
+  }
+
   h1,
   h2,
   h3 {
