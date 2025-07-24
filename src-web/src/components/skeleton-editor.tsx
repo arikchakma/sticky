@@ -76,12 +76,16 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
   );
 
   const navigate = useNavigate();
+
   const prevWindowSizeRef = useRef<PhysicalSize | null>(null);
   const shouldStopAutoResizeRef = useRef<boolean>(getIsManuallyResized());
+  const isProgrammaticResizeRef = useRef<boolean>(false);
+
   const editorContentRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const menuBarRef = useRef<HTMLDivElement>(null);
-  const isProgrammaticResizeRef = useRef<boolean>(false);
+  const bottomDividerRef = useRef<HTMLDivElement>(null);
+  const topDividerRef = useRef<HTMLDivElement>(null);
 
   useOnWindowResize(() => {
     if (isProgrammaticResizeRef.current) {
@@ -101,24 +105,17 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
     editor?.commands?.focus();
   });
 
-  function calculateEditorHeight(editor: TiptapEditor) {
+  const calculateEditorHeight = useCallback((currentEditor: TiptapEditor) => {
     const header = headerRef.current;
     const menuBar = menuBarRef.current;
-    const editorContent = editor.view.dom;
+    const editorDom = currentEditor.view.dom;
     const topDivider = topDividerRef.current;
     const bottomDivider = bottomDividerRef.current;
-    if (
-      !header ||
-      !menuBar ||
-      !editorContent ||
-      !topDivider ||
-      !bottomDivider
-    ) {
-      return;
+    if (!header || !menuBar || !editorDom || !topDivider || !bottomDivider) {
+      return undefined;
     }
 
-    const rect = editorContent.getBoundingClientRect();
-    const editorHeight = rect.height;
+    const editorHeight = editorDom.getBoundingClientRect().height;
     const menuBarHeight = menuBar.getBoundingClientRect().height;
     const headerHeight = header.getBoundingClientRect().height;
     const topDividerHeight = topDivider.getBoundingClientRect().height;
@@ -131,10 +128,10 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       topDividerHeight +
       bottomDividerHeight
     );
-  }
+  }, []);
 
-  const handleResize = useCallback(
-    async (editor: TiptapEditor, force: boolean = false) => {
+  const handleAutoResize = useCallback(
+    async (currentEditor: TiptapEditor) => {
       const editorContent = editorContentRef.current;
       const topDivider = topDividerRef.current;
       const bottomDivider = bottomDividerRef.current;
@@ -143,13 +140,11 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       }
 
       const shouldStop = shouldStopAutoResizeRef.current;
-      if (shouldStop && !force) {
+      if (shouldStop) {
         return;
       }
 
-      shouldStopAutoResizeRef.current = false;
-
-      const totalHeight = calculateEditorHeight(editor);
+      const totalHeight = calculateEditorHeight(currentEditor);
       if (totalHeight === undefined) {
         return;
       }
@@ -175,11 +170,20 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       bottomDivider.style.opacity = '0';
       topDivider.style.opacity = '0';
 
+      shouldStopAutoResizeRef.current = false;
+      isProgrammaticResizeRef.current = true;
+      setIsManuallyResized(false);
+
       await currentWindow.setSize(
         new PhysicalSize(currentSize.width, newHeight)
       );
     },
-    []
+    [
+      calculateEditorHeight,
+      editorContentRef,
+      shouldStopAutoResizeRef,
+      isProgrammaticResizeRef,
+    ]
   );
 
   const isDirtyRef = useRef<boolean>(false);
@@ -192,7 +196,7 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       scrollMargin: 40,
       attributes: {
         class:
-          'focus:outline-none cursor-text! border-none px-5 pt-2 pb-0 editor-content',
+          'focus:outline-none cursor-text! border-none px-5 pb-0 pt-2 editor-content',
       },
     },
     onTransaction: async ({ transaction, editor }) => {
@@ -201,11 +205,9 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
         return;
       }
 
-      isProgrammaticResizeRef.current = true;
-      await handleResize(editor);
+      await handleAutoResize(editor);
     },
-    onUpdate: ({ editor }) => {
-      console.log(JSON.stringify(editor.getJSON()));
+    onUpdate: () => {
       isDirtyRef.current = true;
     },
   });
@@ -243,9 +245,6 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       },
     });
   }, 1000);
-
-  const bottomDividerRef = useRef<HTMLDivElement>(null);
-  const topDividerRef = useRef<HTMLDivElement>(null);
 
   const onScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const bottomDivider = bottomDividerRef.current;
@@ -326,9 +325,6 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       const calculatedHeight = Math.max(MIN_HEIGHT, totalHeight * scaleFactor);
       const newHeight = Math.ceil(Math.min(MAX_HEIGHT, calculatedHeight));
 
-      shouldStopAutoResizeRef.current = false;
-      setIsManuallyResized(false);
-
       const shouldReposition = currentSize.height === newHeight;
       if (shouldReposition) {
         const x =
@@ -346,11 +342,14 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       bottomDivider.style.opacity = '0';
       topDivider.style.opacity = '0';
 
+      shouldStopAutoResizeRef.current = false;
+      isProgrammaticResizeRef.current = true;
+      setIsManuallyResized(false);
       await currentWindow.setSize(
         new PhysicalSize(currentSize.width, newHeight)
       );
+
       editor.commands.focus();
-      isProgrammaticResizeRef.current = true;
     },
     [editor]
   );
@@ -374,9 +373,9 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
     }
 
     const currentWindow = getCurrentWindow();
-    await currentWindow.setSize(prevWindowSize);
     prevWindowSizeRef.current = null;
     isProgrammaticResizeRef.current = true;
+    await currentWindow.setSize(prevWindowSize);
     editor.commands.focus();
   }, []);
 
@@ -418,9 +417,9 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
         return;
       }
 
-      await currentWindow.setSize(prevWindowSize);
       prevWindowSizeRef.current = null;
       isProgrammaticResizeRef.current = true;
+      await currentWindow.setSize(prevWindowSize);
       editor.commands.focus();
       return;
     }
@@ -430,10 +429,10 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       return;
     }
 
+    isProgrammaticResizeRef.current = true;
     await currentWindow.setSize(
       new PhysicalSize(currentSize.width, OPEN_HEIGHT)
     );
-    isProgrammaticResizeRef.current = true;
   }, []);
 
   useOnFocusChanged(() => {
@@ -453,19 +452,22 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       />
 
       <div className="mt-[var(--window-menu-height)] flex h-[calc(100vh-var(--window-menu-height))] flex-col">
-        <Divider ref={topDividerRef} className="opacity-0 transition-opacity" />
+        <Divider
+          ref={topDividerRef}
+          className="shrink-0 opacity-0 transition-opacity"
+        />
 
         <EditorContent
           id={EDITOR_CONTENT_ID}
           editor={editor}
           ref={editorContentRef}
-          className="cursor-text! flex grow flex-col overflow-y-scroll"
+          className="cursor-text! grow flex-col overflow-y-scroll"
           onScroll={onScroll}
           onClick={handleContentClick}
         />
         <Divider
           ref={bottomDividerRef}
-          className="mt-auto opacity-0 transition-opacity"
+          className="mt-auto shrink-0 opacity-0 transition-opacity"
         />
         <MenuBar ref={menuBarRef} editor={editor} />
       </div>

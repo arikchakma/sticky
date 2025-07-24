@@ -21,7 +21,11 @@
   --notes-token-diff-inserted: var(--color-green-500, #009432);
 
   :first-child {
-    @apply mt-0;
+    @apply mt-0!;
+  }
+
+  :last-child {
+    @apply mb-0!;
   }
 
   h1,
