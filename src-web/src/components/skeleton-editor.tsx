@@ -140,7 +140,6 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       }
 
       const shouldStop = shouldStopAutoResizeRef.current;
-      console.log('SHOULD STOP: ', shouldStop);
       if (shouldStop) {
         return;
       }
@@ -197,7 +196,7 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       scrollMargin: 40,
       attributes: {
         class:
-          'focus:outline-none cursor-text! border-none px-5 pt-2 pb-0 editor-content',
+          'focus:outline-none cursor-text! border-none px-5 pb-0 pt-2 editor-content',
       },
     },
     onTransaction: async ({ transaction, editor }) => {
@@ -344,20 +343,12 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       topDivider.style.opacity = '0';
 
       shouldStopAutoResizeRef.current = false;
-      console.log(
-        'SHOULD STOP (handleDoubleClick)[FIRST]: ',
-        shouldStopAutoResizeRef.current
-      );
       isProgrammaticResizeRef.current = true;
       setIsManuallyResized(false);
       await currentWindow.setSize(
         new PhysicalSize(currentSize.width, newHeight)
       );
 
-      console.log(
-        'SHOULD STOP (handleDoubleClick)[SECOND]: ',
-        shouldStopAutoResizeRef.current
-      );
       editor.commands.focus();
     },
     [editor]
@@ -461,7 +452,10 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       />
 
       <div className="mt-[var(--window-menu-height)] flex h-[calc(100vh-var(--window-menu-height))] flex-col">
-        <Divider ref={topDividerRef} className="opacity-0 transition-opacity" />
+        <Divider
+          ref={topDividerRef}
+          className="shrink-0 opacity-0 transition-opacity"
+        />
 
         <EditorContent
           id={EDITOR_CONTENT_ID}
@@ -473,7 +467,7 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
         />
         <Divider
           ref={bottomDividerRef}
-          className="mt-auto opacity-0 transition-opacity"
+          className="mt-auto shrink-0 opacity-0 transition-opacity"
         />
         <MenuBar ref={menuBarRef} editor={editor} />
       </div>

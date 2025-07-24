@@ -18,6 +18,12 @@ body,
   @apply h-full w-full overflow-hidden bg-white caret-red-500 accent-red-500 selection:bg-red-200/70;
 }
 
+
+/* Never show ligatures */
+:root {
+  font-variant-ligatures: none;
+}
+
 :not(iframe) {
   &::-webkit-scrollbar,
   &::-webkit-scrollbar-corner {
