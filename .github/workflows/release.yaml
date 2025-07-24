@@ -1,0 +1,73 @@
+name: Generate Artifacts
+
+on:
+  push:
+    branches:
+      - release
+
+jobs:
+  build-artifacts:
+    permissions:
+      contents: write
+
+    name: Build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'macos-latest'
+            args: '--target aarch64-apple-darwin'
+            arch: 'arm64'
+          - platform: 'macos-latest'
+            args: '--target x86_64-apple-darwin'
+            arch: 'x64'
+
+    runs-on: ${{ matrix.platform }}
+    timeout-minutes: 40
+
+    steps:
+      - name: checkout Sticky
+        uses: actions/checkout@v4
+
+      - name: setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.11.0
+
+      - name: install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            src-tauri/target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      # TODO: add this back in when we support linux
+      # - name: install dependencies (ubuntu only)
+      #   if: matrix.platform == 'ubuntu-22.04'
+      #   run: |
+      #     sudo apt-get update
+      #     sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Install pnpm dependencies
+        run: pnpm install --frozen-lockfile
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          NO_STRIP: true
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: 'v__VERSION__'
+          releaseName: 'Release __VERSION__'
+          releaseBody: '[Changelog __VERSION__](https://sticky.fyi/changelog/__VERSION__)'
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
