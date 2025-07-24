@@ -1,5 +1,5 @@
 import { PlusIcon } from 'lucide-react';
-import { forwardRef, useEffect, useState } from 'react';
+import { forwardRef } from 'react';
 import { cn } from '~/lib/classname';
 import { BrowseDialog, type BrowseDialogProps } from './browse-dialog';
 import { Button } from './ui/button';
@@ -65,8 +65,8 @@ export const Header = forwardRef<
     >
       <div
         className="flex h-full items-center justify-between"
-        data-tauri-drag-region
         id={HEADER_ID}
+        {...(!isMac ? { 'data-tauri-drag-region': '' } : {})}
         onDoubleClick={onDoubleClick}
       >
         <div className="flex items-center pl-2">
@@ -84,78 +84,8 @@ export const Header = forwardRef<
 Header.displayName = 'Header';
 
 function WindowControls() {
-  const [maximized, setMaximized] = useState(false);
-
-  useEffect(() => {
-    currentWindow.isMaximized().then(setMaximized);
-    const win = currentWindow;
-    const handler = () => win.isMaximized().then(setMaximized);
-    let unlisten: (() => void) | undefined;
-    win.onResized(handler).then((fn) => {
-      unlisten = fn;
-    });
-    return () => {
-      if (unlisten) unlisten();
-    };
-  }, []);
-
   return (
     <div className="flex h-full select-none items-center">
-      <button
-        className="flex h-12 w-12 items-center justify-center rounded-none text-gray-500 transition hover:bg-gray-100 active:bg-gray-200"
-        onClick={() => currentWindow.minimize()}
-        aria-label="Minimize"
-        tabIndex={0}
-      >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <rect
-            x="3"
-            y="8"
-            width="10"
-            height="1.5"
-            rx="0.75"
-            fill="currentColor"
-          />
-        </svg>
-      </button>
-      <button
-        className="flex h-12 w-12 items-center justify-center rounded-none text-gray-500 transition hover:bg-gray-100 active:bg-gray-200"
-        onClick={async () => {
-          const win = currentWindow;
-          const isMax = await win.isMaximized();
-          if (isMax) {
-            await win.unmaximize();
-            setMaximized(false);
-          } else {
-            await win.maximize();
-            setMaximized(true);
-          }
-        }}
-        aria-label="Maximize"
-        tabIndex={0}
-      >
-        {maximized ? (
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <g fill="none" stroke="currentColor" strokeWidth="1.5">
-              <rect x="4.5" y="4.5" width="7" height="7" rx="1.5" />
-              <rect x="6.5" y="6.5" width="5" height="5" rx="1" />
-            </g>
-          </svg>
-        ) : (
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <rect
-              x="3.5"
-              y="3.5"
-              width="9"
-              height="9"
-              rx="2"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              fill="none"
-            />
-          </svg>
-        )}
-      </button>
       <button
         className="flex h-12 w-12 items-center justify-center rounded-none text-gray-500 transition hover:bg-red-100 hover:text-red-600 focus:outline-none active:bg-red-200"
         onClick={() => currentWindow.close()}
