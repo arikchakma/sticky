@@ -66,7 +66,11 @@ export const Header = forwardRef<
       <div
         className="flex h-full items-center justify-between"
         id={HEADER_ID}
-        {...(!isMac ? { 'data-tauri-drag-region': '' } : {})}
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          currentWindow.startDragging();
+        }}
         onDoubleClick={onDoubleClick}
       >
         <div className="flex items-center pl-2">
