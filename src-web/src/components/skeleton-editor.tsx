@@ -284,12 +284,9 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
     });
 
     queryClient.invalidateQueries(listNotesOptions());
-    await invoke('cmd_new_child_window', {
-      parentWindow: getCurrentWebviewWindow(),
+    await invoke('cmd_new_main_window', {
       url: `/${newNote.id}`,
-      label: `child_${newNote.id}`,
-      title: `Sticky`,
-      innerSize: [DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT],
+      size: [DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT],
     });
   }, [editor]);
 
