@@ -11,6 +11,18 @@ A fast and lightweight notepad for quickly writing down your ideas, notes, tasks
 
 ![App Screenshot](https://github.com/user-attachments/assets/a6795eae-0bdb-41f0-9c51-564533d28514)
 
+## Installation
+
+- Download the [relevant version from releases](https://github.com/arikchakma/sticky/releases)
+  - For intel chips download x64 DMG e.g. `Sticky_0.1.0_x64.dmg`
+  - For Apple chips download aarch64 DMG e.g. `Sticky_0.1.0_aarch64.dmg`
+- Double click the downloaded file
+- Copy the application into your `Applications` directory
+- Run the following command to remove the app from quarantine
+  ```
+  xattr -rd com.apple.quarantine /Applications/Sticky.app
+  ```
+
 ## Contributions
 
 Contributions are very welcome! Submit pull requests, create issues, or help improve documentation.
