@@ -1,5 +1,9 @@
-import path from 'path';
 import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const version = process.env.STICKY_VERSION?.replace('v', '');
 if (!version) {
