@@ -11,7 +11,8 @@
     "tauri:before-build": "pnpm --filter @sticky/app build",
     "format:write": "prettier --write \"**/*.{ts,tsx,md}\"",
     "format:organize": "prettier --write \"**/*.{ts,tsx,md}\" --plugin=prettier-plugin-organize-imports",
-    "migration:create": "tsx scripts/create-migration.ts"
+    "migration:create": "tsx scripts/create-migration.ts",
+    "scripts:replace-version": "tsx scripts/replace-version.ts"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",

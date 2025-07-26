@@ -105,7 +105,7 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
     editor?.commands?.focus();
   });
 
-  const calculateEditorHeight = useCallback((currentEditor: TiptapEditor) => {
+  const calculateEditorHeight = (currentEditor: TiptapEditor) => {
     const header = headerRef.current;
     const menuBar = menuBarRef.current;
     const editorDom = currentEditor.view.dom;
@@ -128,7 +128,7 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       topDividerHeight +
       bottomDividerHeight
     );
-  }, []);
+  };
 
   const handleAutoResize = useCallback(
     async (currentEditor: TiptapEditor) => {
@@ -153,6 +153,7 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       if (!monitor) {
         return;
       }
+
       const scaleFactor = monitor.scaleFactor;
       const screenHeight = monitor.workArea.size.height;
 
@@ -312,7 +313,6 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       if (!monitor) {
         return;
       }
-
       const scaleFactor = monitor.scaleFactor;
       const screenHeight = monitor.workArea.size.height;
 
@@ -333,6 +333,8 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
         const y = monitor.position.y + 100 * scaleFactor;
 
         await currentWindow.setPosition(new PhysicalPosition(x, y));
+        shouldStopAutoResizeRef.current = false;
+        setIsManuallyResized(false);
         editor.commands.focus();
         return;
       }
@@ -348,7 +350,6 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       await currentWindow.setSize(
         new PhysicalSize(currentSize.width, newHeight)
       );
-
       editor.commands.focus();
     },
     [editor]

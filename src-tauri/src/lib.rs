@@ -137,14 +137,12 @@ pub fn custom_colored_format(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[cfg(debug_assertions)]
-    let log_spec = LogSpecification::builder()
-        .module("notes", log::LevelFilter::Trace)
-        .build();
+    let log_spec =
+        LogSpecification::builder().default(log::LevelFilter::Trace).build();
 
     #[cfg(not(debug_assertions))]
-    let log_spec = LogSpecification::builder()
-        .module("notes", log::LevelFilter::Info)
-        .build();
+    let log_spec =
+        LogSpecification::builder().default(log::LevelFilter::Info).build();
 
     let log_dir = std::env::temp_dir().join("notes_logs");
     std::fs::create_dir_all(&log_dir).unwrap_or_else(|e| {

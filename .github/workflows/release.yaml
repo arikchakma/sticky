@@ -59,6 +59,11 @@ jobs:
       - name: Install pnpm dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Replace version
+        run: pnpm scripts:replace-version
+        env:
+          STICKY_VERSION: ${{ github.ref_name }}
+
       - uses: tauri-apps/tauri-action@v0
         env:
           NO_STRIP: true
