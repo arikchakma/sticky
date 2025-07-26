@@ -44,10 +44,20 @@ export const Header = forwardRef<
         onMouseDown={(e) => {
           e.stopPropagation();
           e.preventDefault();
+          // if the button is not the left mouse button, return
+          // because we only want to handle left mouse button double click
+          if (e.buttons !== 1) {
+            return;
+          }
+
+          if (e.detail === 2) {
+            onDoubleClick(e);
+            return;
+          }
+
           currentWindow.startDragging();
         }}
         id={HEADER_ID}
-        onDoubleClick={onDoubleClick}
       >
         <div className="pointer-events-none flex items-center gap-2 pl-3.5">
           <TrafficButton />

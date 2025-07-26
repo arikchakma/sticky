@@ -4,7 +4,8 @@ use log::{error, warn};
 use sticky_models::models::Note;
 use sticky_models::queries::{delete_note, get_note, list_notes, upsert_note};
 use tauri::{
-    App, AppHandle, Manager, RunEvent, Runtime, WebviewWindow, WindowEvent,
+    include_image, tray::TrayIconBuilder, App, AppHandle, Manager, RunEvent,
+    Runtime, WebviewWindow, WindowEvent,
 };
 use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
 
@@ -183,6 +184,15 @@ pub fn run() {
         .setup(|app_handle: &mut App| {
             debug_log!("Setting up Tauri application");
 
+            #[cfg(target_os = "macos")]
+            {
+                app_handle
+                    .set_activation_policy(tauri::ActivationPolicy::Accessory);
+            }
+
+            let image = include_image!("./icons/tray/32x32.png");
+            let _ =
+                TrayIconBuilder::new().icon(image).build(app_handle).unwrap();
             app_handle.manage(AppState::default());
 
             Ok(())

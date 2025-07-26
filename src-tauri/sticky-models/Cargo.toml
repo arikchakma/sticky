@@ -7,7 +7,7 @@ publish = false
 [dependencies]
 chrono = { version = "0.4.38", features = ["serde"] }
 hex = "0.4.3"
-include_dir = "0.7"
+include_dir = { workspace = true }
 log = "0.4.22"
 nanoid = "0.4.0"
 r2d2 = "0.8.10"
