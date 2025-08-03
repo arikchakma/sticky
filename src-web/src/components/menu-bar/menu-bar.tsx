@@ -1,7 +1,8 @@
 import { useEditorState, type Editor } from '@tiptap/react';
 import { TypeIcon, XCircleIcon } from 'lucide-react';
-import { forwardRef, useState } from 'react';
+import { forwardRef, useEffect, useState } from 'react';
 import { cn } from '~/lib/classname';
+import { getShowWordCount, listenShowWordCount } from '~/lib/settings';
 import { Button } from '../ui/button';
 import { MenuBarItems } from './menu-bar-items';
 
@@ -16,6 +17,15 @@ export const MenuBar = forwardRef<HTMLDivElement, MenuBarProps>(
     const [countType, setCountType] = useState<'characters' | 'words'>(
       'characters'
     );
+    const [showCount, setShowCount] = useState(true);
+
+    useEffect(() => {
+      getShowWordCount().then(setShowCount);
+      const unlisten = listenShowWordCount(setShowCount);
+      return () => {
+        unlisten.then((fn) => fn());
+      };
+    }, []);
 
     const { characterCount, wordCount } = useEditorState({
       editor,
@@ -37,7 +47,7 @@ export const MenuBar = forwardRef<HTMLDivElement, MenuBarProps>(
           )}
         >
           {showMenuBarItems && <MenuBarItems editor={editor} />}
-          {!showMenuBarItems && (
+          {!showMenuBarItems && showCount && (
             <button
               className="text-sm font-medium text-zinc-300 transition-colors duration-150 hover:text-zinc-400 focus:outline-none"
               onClick={() =>
