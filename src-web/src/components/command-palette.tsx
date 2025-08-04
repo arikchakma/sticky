@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getShowWordCount, setShowWordCount } from '~/lib/settings';
+import { isMacOS } from '~/lib/detect-browser';
 
 interface Command {
   label: string;
@@ -13,7 +14,7 @@ export function CommandPalette() {
   const [selected, setSelected] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+  const isMac = isMacOS();
 
   const toggleWordCount = useCallback(async () => {
     const current = await getShowWordCount();
