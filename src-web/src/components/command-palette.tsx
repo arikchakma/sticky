@@ -2,24 +2,47 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { isMacOS } from '~/lib/detect-browser';
 import { getShowWordCount, setShowWordCount } from '~/lib/settings';
 
+interface Shortcut {
+  key: string;
+  meta?: boolean;
+  ctrl?: boolean;
+  shift?: boolean;
+}
+
 interface Command {
   label: string;
   action: () => void | Promise<void>;
-  shortcut?: string;
+  shortcut?: Shortcut;
 }
 
 interface CommandPaletteProps {
   onNewWindow: () => void | Promise<void>;
 }
 
-export function CommandPalette(props: CommandPaletteProps) {
-  const { onNewWindow } = props;
+export function CommandPalette({ onNewWindow }: CommandPaletteProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const isMac = isMacOS();
+  const isMac = useMemo(isMacOS, []);
+
+  const formatShortcut = (s?: Shortcut): string | undefined => {
+    if (!s) return;
+    const parts: string[] = [];
+
+    if (isMac) {
+      if (s.meta) parts.push('⌘');
+      if (s.ctrl) parts.push('⌃');
+      if (s.shift) parts.push('⇧');
+    } else {
+      if (s.ctrl || s.meta) parts.push('Ctrl');
+      if (s.shift) parts.push('Shift');
+    }
+
+    parts.push(s.key.toUpperCase());
+    return isMac ? parts.join('') : parts.join('+');
+  };
 
   const toggleWordCount = useCallback(async () => {
     const current = await getShowWordCount();
@@ -30,16 +53,16 @@ export function CommandPalette(props: CommandPaletteProps) {
     () => [
       {
         label: 'Create New Note',
-        shortcut: isMac ? '⌘N' : 'Ctrl+N',
+        shortcut: { key: 'n', meta: true },
         action: onNewWindow,
       },
       {
         label: 'Toggle Word/Character Count',
-        shortcut: isMac ? '⌘W' : 'Ctrl+W',
+        shortcut: { key: 'w', meta: true },
         action: toggleWordCount,
       },
     ],
-    [isMac, onNewWindow, toggleWordCount]
+    [onNewWindow, toggleWordCount]
   );
 
   const filtered = useMemo(
@@ -51,24 +74,35 @@ export function CommandPalette(props: CommandPaletteProps) {
   );
 
   useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
+    const matchShortcut = (e: KeyboardEvent, s: Shortcut): boolean =>
+      e.key.toLowerCase() === s.key.toLowerCase() &&
+      (s.meta ? e.metaKey : true) &&
+      (s.ctrl ? e.ctrlKey : true) &&
+      (s.shift ? e.shiftKey : true);
+
+    const onKeyDown = (e: KeyboardEvent) => {
       const key = e.key.toLowerCase();
       const isMod = e.metaKey || e.ctrlKey;
+
       if (isMod && key === 'k') {
         e.preventDefault();
         setOpen((o) => !o);
-      } else if (isMod && key === 'n') {
-        e.preventDefault();
-        onNewWindow();
-        setOpen(false);
-      } else if (isMod && key === 'w') {
-        e.preventDefault();
-        toggleWordCount();
+        return;
       }
-    }
+
+      for (const cmd of commands) {
+        if (cmd.shortcut && matchShortcut(e, cmd.shortcut)) {
+          e.preventDefault();
+          cmd.action();
+          setOpen(false);
+          break;
+        }
+      }
+    };
+
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onNewWindow, toggleWordCount]);
+  }, [commands]);
 
   useEffect(() => {
     if (!open) {
@@ -134,7 +168,9 @@ export function CommandPalette(props: CommandPaletteProps) {
             >
               <span>{cmd.label}</span>
               {cmd.shortcut && (
-                <span className="ml-4 text-xs text-gray-500">{cmd.shortcut}</span>
+                <span className="ml-4 text-xs text-gray-500">
+                  {formatShortcut(cmd.shortcut)}
+                </span>
               )}
             </li>
           ))}
