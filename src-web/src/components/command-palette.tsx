@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getShowWordCount, setShowWordCount } from '~/lib/settings';
 import { isMacOS } from '~/lib/detect-browser';
+import { getShowWordCount, setShowWordCount } from '~/lib/settings';
 
 interface Command {
   label: string;
@@ -8,7 +8,12 @@ interface Command {
   shortcut?: string;
 }
 
-export function CommandPalette() {
+interface CommandPaletteProps {
+  onNewWindow: () => void | Promise<void>;
+}
+
+export function CommandPalette(props: CommandPaletteProps) {
+  const { onNewWindow } = props;
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState(0);
@@ -26,7 +31,7 @@ export function CommandPalette() {
       {
         label: 'Create New Note',
         shortcut: isMac ? '⌘N' : 'Ctrl+N',
-        action: toggleWordCount,
+        action: onNewWindow,
       },
       {
         label: 'Toggle Word/Character Count',
@@ -34,7 +39,7 @@ export function CommandPalette() {
         action: toggleWordCount,
       },
     ],
-    [isMac, toggleWordCount]
+    [isMac, onNewWindow, toggleWordCount]
   );
 
   const filtered = useMemo(
@@ -54,6 +59,8 @@ export function CommandPalette() {
         setOpen((o) => !o);
       } else if (isMod && key === 'n') {
         e.preventDefault();
+        onNewWindow();
+        setOpen(false);
       } else if (isMod && key === 'w') {
         e.preventDefault();
         toggleWordCount();
@@ -61,7 +68,7 @@ export function CommandPalette() {
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [toggleWordCount]);
+  }, [onNewWindow, toggleWordCount]);
 
   useEffect(() => {
     if (!open) {

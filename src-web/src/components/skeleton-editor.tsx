@@ -22,6 +22,7 @@ import { useCallback, useMemo, useRef } from 'react';
 import { toast } from 'sonner';
 import { Divider } from '~/components/divider';
 import { Header, HEADER_ID } from '~/components/header';
+import { CommandPalette } from '~/components/command-palette';
 import { MenuBar } from '~/components/menu-bar/menu-bar';
 import { useInterval } from '~/hooks/use-interval';
 import { useOnFocusChanged } from '~/hooks/use-on-focus-changed';
@@ -442,6 +443,7 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
 
   return (
     <main>
+      <CommandPalette onNewWindow={handleNewWindow} />
       <Header
         ref={headerRef}
         activeNoteId={currentNoteId}
