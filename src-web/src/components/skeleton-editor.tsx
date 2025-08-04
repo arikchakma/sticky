@@ -290,15 +290,6 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
     });
   }, [editor]);
 
-  const handleOpenSettings = useCallback(async () => {
-    await invoke('cmd_new_child_window', {
-      url: '/settings',
-      label: 'settings',
-      title: 'Settings',
-      innerSize: [300, 120],
-    });
-  }, []);
-
   const handleDoubleClick = useCallback(
     async (e: React.MouseEvent<HTMLDivElement>) => {
       const target = e.target instanceof HTMLElement ? e.target : null;
@@ -455,7 +446,6 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
         ref={headerRef}
         activeNoteId={currentNoteId}
         onNewWindow={handleNewWindow}
-        onOpenSettings={handleOpenSettings}
         onDoubleClick={handleDoubleClick}
         onNoteClick={handleNoteClick}
         onOpenChange={handleOpenChange}

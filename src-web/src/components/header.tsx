@@ -1,5 +1,5 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { PlusIcon, SettingsIcon } from 'lucide-react';
+import { PlusIcon } from 'lucide-react';
 import { forwardRef } from 'react';
 import { cn } from '~/lib/classname';
 import { BrowseDialog, type BrowseDialogProps } from './browse-dialog';
@@ -12,7 +12,6 @@ const currentWindow = getCurrentWindow();
 type HeaderProps = {
   activeNoteId?: string;
   onNewWindow: () => void;
-  onOpenSettings: () => void;
   onDoubleClick: (e: React.MouseEvent<HTMLDivElement>) => void;
 } & BrowseDialogProps;
 
@@ -24,7 +23,6 @@ export const Header = forwardRef<
     className,
     activeNoteId,
     onNewWindow,
-    onOpenSettings,
     onDoubleClick,
     onNoteClick,
     onOpenChange,
@@ -74,17 +72,6 @@ export const Header = forwardRef<
             onOpenChange={onOpenChange}
             onNoteDelete={onNoteDelete}
           />
-          <Button
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenSettings();
-            }}
-            variant="ghost"
-            size="icon"
-            className="size-7 shrink-0 text-zinc-300 transition-colors duration-150 hover:text-zinc-600"
-          >
-            <SettingsIcon className="h-4 w-4" />
-          </Button>
           <Button
             onClick={(e) => {
               e.stopPropagation();
