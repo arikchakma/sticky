@@ -74,17 +74,16 @@ export function CommandPalette({ onNewWindow }: CommandPaletteProps) {
   );
 
   useEffect(() => {
-    const matchShortcut = (e: KeyboardEvent, s: Shortcut): boolean =>
+    const matchShortcut = (e: KeyboardEvent, s: Shortcut) =>
       e.key.toLowerCase() === s.key.toLowerCase() &&
-      (s.meta ? e.metaKey : true) &&
-      (s.ctrl ? e.ctrlKey : true) &&
-      (s.shift ? e.shiftKey : true);
+      (!s.meta || e.metaKey) &&
+      (!s.ctrl || e.ctrlKey) &&
+      (!s.shift || e.shiftKey);
 
     const onKeyDown = (e: KeyboardEvent) => {
       const key = e.key.toLowerCase();
-      const isMod = e.metaKey || e.ctrlKey;
 
-      if (isMod && key === 'k') {
+      if ((e.metaKey || e.ctrlKey) && key === 'k') {
         e.preventDefault();
         setOpen((o) => !o);
         return;
@@ -95,7 +94,7 @@ export function CommandPalette({ onNewWindow }: CommandPaletteProps) {
           e.preventDefault();
           cmd.action();
           setOpen(false);
-          break;
+          return;
         }
       }
     };
@@ -116,9 +115,7 @@ export function CommandPalette({ onNewWindow }: CommandPaletteProps) {
   const handleKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSelected((s) =>
-        filtered.length ? (s + 1) % filtered.length : 0
-      );
+      setSelected((s) => (filtered.length ? (s + 1) % filtered.length : 0));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setSelected((s) =>
@@ -154,26 +151,32 @@ export function CommandPalette({ onNewWindow }: CommandPaletteProps) {
           placeholder="Type a command..."
         />
         <ul className="max-h-60 overflow-y-auto">
-          {filtered.map((cmd, i) => (
-            <li
-              key={cmd.label}
-              className={`flex cursor-pointer items-center justify-between rounded px-2 py-1 text-sm ${
-                i === selected ? 'bg-gray-200' : ''
-              }`}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                cmd.action();
-                setOpen(false);
-              }}
-            >
-              <span>{cmd.label}</span>
-              {cmd.shortcut && (
-                <span className="ml-4 text-xs text-gray-500">
-                  {formatShortcut(cmd.shortcut)}
-                </span>
-              )}
+          {filtered.length === 0 ? (
+            <li className="px-2 py-1 text-sm italic text-gray-500">
+              No matching commands
             </li>
-          ))}
+          ) : (
+            filtered.map((cmd, i) => (
+              <li
+                key={cmd.label}
+                className={`flex cursor-pointer items-center justify-between rounded px-2 py-1 text-sm ${
+                  i === selected ? 'bg-gray-200' : ''
+                }`}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  cmd.action();
+                  setOpen(false);
+                }}
+              >
+                <span>{cmd.label}</span>
+                {cmd.shortcut && (
+                  <span className="ml-4 text-xs text-gray-500">
+                    {formatShortcut(cmd.shortcut)}
+                  </span>
+                )}
+              </li>
+            ))
+          )}
         </ul>
       </div>
     </div>
