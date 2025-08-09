@@ -443,7 +443,10 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
 
   return (
     <main>
-      <CommandPalette onNewWindow={handleNewWindow} />
+      <CommandPalette
+        onNewWindow={handleNewWindow}
+        onOpenChange={handleOpenChange}
+      />
       <Header
         ref={headerRef}
         activeNoteId={currentNoteId}

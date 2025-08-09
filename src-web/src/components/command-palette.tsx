@@ -1,54 +1,70 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  currentMonitor,
-  getCurrentWindow,
-  PhysicalSize,
-} from '@tauri-apps/api/window';
 import { isMacOS } from '~/lib/detect-browser';
 import { getShowWordCount, setShowWordCount } from '~/lib/settings';
+import { Input } from './ui/input';
+import {
+  Dialog,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  ScrollableDialogContent,
+} from './ui/dialog';
 
-interface Shortcut {
+type Shortcut = {
   key: string;
   meta?: boolean;
   ctrl?: boolean;
   shift?: boolean;
-}
+};
 
-interface Command {
+type Command = {
+  id: string;
   label: string;
   action: () => void | Promise<void>;
   shortcut?: Shortcut;
-}
+};
 
-interface CommandPaletteProps {
+export type CommandPaletteProps = {
   onNewWindow: () => void | Promise<void>;
-}
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+};
 
-export function CommandPalette({ onNewWindow }: CommandPaletteProps) {
-  const [open, setOpen] = useState(false);
+export function CommandPalette({
+  onNewWindow,
+  open: openProp,
+  onOpenChange,
+}: CommandPaletteProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const open = openProp ?? isOpen;
+  const setOpen = useCallback(
+    (v: boolean) => {
+      if (openProp === undefined) setIsOpen(v);
+      onOpenChange?.(v);
+    },
+    [openProp, onOpenChange]
+  );
+
   const [query, setQuery] = useState('');
-  const [selected, setSelected] = useState(0);
+  const [focusedIdx, setFocusedIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const prevWindowSizeRef = useRef<PhysicalSize | null>(null);
+  const itemRefs = useRef<Array<HTMLLIElement | null>>([]);
+  const isMac = isMacOS();
 
-  const isMac = useMemo(isMacOS, []);
-
-  const formatShortcut = (s?: Shortcut): string | undefined => {
-    if (!s) return;
+  const shortcutParts = (s?: Shortcut): string[] => {
+    if (!s) return [];
     const parts: string[] = [];
-
     if (isMac) {
       if (s.meta) parts.push('⌘');
       if (s.ctrl) parts.push('⌃');
       if (s.shift) parts.push('⇧');
+      parts.push(s.key.toUpperCase());
     } else {
       if (s.ctrl || s.meta) parts.push('Ctrl');
       if (s.shift) parts.push('Shift');
+      parts.push(s.key.toUpperCase());
     }
-
-    parts.push(s.key.toUpperCase());
-    return isMac ? parts.join('') : parts.join('+');
+    return parts;
   };
 
   const toggleWordCount = useCallback(async () => {
@@ -59,123 +75,88 @@ export function CommandPalette({ onNewWindow }: CommandPaletteProps) {
   const commands = useMemo<Command[]>(
     () => [
       {
+        id: 'new-note',
         label: 'Create New Note',
         shortcut: { key: 'n', meta: true },
         action: onNewWindow,
       },
       {
+        id: 'toggle-counters',
         label: 'Toggle Word/Character Count',
-        shortcut: { key: 'w', meta: true },
+        shortcut: { key: 'c', meta: true, shift: true },
         action: toggleWordCount,
       },
     ],
     [onNewWindow, toggleWordCount]
   );
 
-  const filtered = useMemo(
-    () =>
-      commands.filter((cmd) =>
-        cmd.label.toLowerCase().includes(query.toLowerCase())
-      ),
-    [commands, query]
-  );
+  const norm = (s: string) =>
+    s
+      .normalize('NFKD')
+      .replace(/\p{Diacritic}/gu, '')
+      .toLowerCase()
+      .trim();
+
+  const filtered = useMemo(() => {
+    const q = norm(query);
+    return q ? commands.filter((c) => norm(c.label).includes(q)) : commands;
+  }, [commands, query]);
+
+  const isEmpty = filtered.length === 0;
 
   useEffect(() => {
-    const matchShortcut = (e: KeyboardEvent, s: Shortcut) =>
-      e.key.toLowerCase() === s.key.toLowerCase() &&
-      (!s.meta || e.metaKey) &&
-      (!s.ctrl || e.ctrlKey) &&
-      (!s.shift || e.shiftKey);
-
     const onKeyDown = (e: KeyboardEvent) => {
-      const key = e.key.toLowerCase();
-
-      if ((e.metaKey || e.ctrlKey) && key === 'k') {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
-        setOpen((o) => !o);
-        return;
-      }
-
-      for (const cmd of commands) {
-        if (cmd.shortcut && matchShortcut(e, cmd.shortcut)) {
-          e.preventDefault();
-          cmd.action();
-          setOpen(false);
-          return;
-        }
+        setOpen(!open);
       }
     };
-
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [commands]);
+  }, [open, setOpen]);
 
   useEffect(() => {
-    if (!open) {
-      return;
-    }
-    inputRef.current?.focus();
+    if (!open) return;
     setQuery('');
-    setSelected(0);
+    setFocusedIdx(0);
+    const id = requestAnimationFrame(() => inputRef.current?.focus());
+    return () => cancelAnimationFrame(id);
   }, [open]);
 
   useEffect(() => {
-    const adjustHeight = async () => {
-      if (!open) {
-        const prevSize = prevWindowSizeRef.current;
-        if (!prevSize) {
-          return;
-        }
+    const el = itemRefs.current[focusedIdx];
+    el?.scrollIntoView({ block: 'nearest' });
+  }, [focusedIdx]);
 
-        prevWindowSizeRef.current = null;
-        await getCurrentWindow().setSize(prevSize);
-        return;
-      }
+  const matchShortcut = (e: KeyboardEvent | React.KeyboardEvent, s: Shortcut) =>
+    e.key.toLowerCase() === s.key.toLowerCase() &&
+    (!s.meta || ('metaKey' in e && e.metaKey)) &&
+    (!s.ctrl || ('ctrlKey' in e && e.ctrlKey)) &&
+    (!s.shift || ('shiftKey' in e && e.shiftKey));
 
-      const panel = containerRef.current;
-      if (!panel) {
-        return;
-      }
-
-      const rect = panel.getBoundingClientRect();
-      const requiredHeight = rect.bottom + 40;
-
-      if (requiredHeight <= window.innerHeight) {
-        return;
-      }
-
-      const monitor = await currentMonitor();
-      const scaleFactor = monitor?.scaleFactor ?? 1;
-      const currentWindow = getCurrentWindow();
-      const currentSize = await currentWindow.outerSize();
-
-      if (!prevWindowSizeRef.current) {
-        prevWindowSizeRef.current = currentSize;
-      }
-
-      const newHeight = Math.ceil(requiredHeight * scaleFactor);
-      await currentWindow.setSize(
-        new PhysicalSize(currentSize.width, newHeight)
-      );
-    };
-
-    adjustHeight();
-  }, [open, filtered.length]);
-
-  const handleKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const onInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const hotkeyCmd = filtered.find(
+      (c) => c.shortcut && matchShortcut(e, c.shortcut)
+    );
+    if (hotkeyCmd) {
+      e.preventDefault();
+      void hotkeyCmd.action();
+      setOpen(false);
+      return;
+    }
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSelected((s) => (filtered.length ? (s + 1) % filtered.length : 0));
+      setFocusedIdx((i) => (filtered.length ? (i + 1) % filtered.length : 0));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setSelected((s) =>
-        filtered.length ? (s - 1 + filtered.length) % filtered.length : 0
+      setFocusedIdx((i) =>
+        filtered.length ? (i - 1 + filtered.length) % filtered.length : 0
       );
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      const cmd = filtered[selected];
+      const cmd = filtered[focusedIdx];
       if (cmd) {
-        cmd.action();
+        void cmd.action();
         setOpen(false);
       }
     } else if (e.key === 'Escape') {
@@ -184,54 +165,95 @@ export function CommandPalette({ onNewWindow }: CommandPaletteProps) {
     }
   };
 
-  if (!open) return null;
+  useEffect(() => {
+    if (open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      for (const c of commands) {
+        if (c.shortcut && matchShortcut(e, c.shortcut)) {
+          e.preventDefault();
+          c.action();
+          return;
+        }
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [open, commands]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4">
-      <div
-        ref={containerRef}
-        className="mt-6 w-full max-w-sm rounded-md bg-white p-2 shadow-lg"
+    <Dialog open={open} onOpenChange={setOpen}>
+      <ScrollableDialogContent
+        onCloseAutoFocus={(e) => e.preventDefault()}
+        showCloseButton={false}
+        overlayClassName="px-5 bg-white/40 pt-14 overflow-y-hidden"
+        className="flex h-fit w-full max-w-sm flex-col overflow-y-hidden rounded-lg border border-zinc-200 p-0 shadow-2xl"
       >
-        <input
-          ref={inputRef}
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setSelected(0);
-          }}
-          onKeyDown={handleKey}
-          className="mb-2 w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none"
-          placeholder="Type a command..."
-        />
-        <ul className="max-h-60 overflow-y-auto">
-          {filtered.length === 0 ? (
-            <li className="px-2 py-1 text-sm italic text-gray-500">
-              No matching commands
-            </li>
-          ) : (
-            filtered.map((cmd, i) => (
-              <li
-                key={cmd.label}
-                className={`flex cursor-pointer items-center justify-between rounded px-2 py-1 text-sm ${
-                  i === selected ? 'bg-gray-200' : ''
-                }`}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  cmd.action();
-                  setOpen(false);
-                }}
-              >
-                <span>{cmd.label}</span>
-                {cmd.shortcut && (
-                  <span className="ml-4 text-xs text-gray-500">
-                    {formatShortcut(cmd.shortcut)}
-                  </span>
-                )}
+        <DialogHeader className="sr-only">
+          <DialogTitle>Command Palette</DialogTitle>
+          <DialogDescription>Run actions quickly</DialogDescription>
+        </DialogHeader>
+        <div className="border-b border-zinc-200">
+          <Input
+            ref={inputRef}
+            type="text"
+            placeholder="Search for actions…"
+            className="h-10 w-full border-none p-4 text-sm placeholder:text-zinc-400 focus-visible:ring-0"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            spellCheck={false}
+            autoComplete="off"
+            onKeyDown={onInputKeyDown}
+          />
+        </div>
+        <div className="max-h-60 overflow-y-auto py-2">
+          <ul
+            id="command-listbox"
+            role="listbox"
+            aria-activedescendant={filtered[focusedIdx]?.id ?? undefined}
+            className="flex flex-col px-2"
+          >
+            {isEmpty ? (
+              <li className="px-2 py-2 text-sm italic text-zinc-400">
+                No matching commands
               </li>
-            ))
-          )}
-        </ul>
-      </div>
-    </div>
+            ) : (
+              filtered.map((cmd, i) => {
+                const focused = i === focusedIdx;
+                return (
+                  <li
+                    ref={(el) => (itemRefs.current[i] = el)}
+                    id={cmd.id}
+                    key={cmd.id}
+                    className={`flex cursor-pointer items-center justify-between rounded px-2 py-2 text-sm ${
+                      focused ? 'bg-zinc-100' : ''
+                    }`}
+                    onMouseEnter={() => setFocusedIdx(i)}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      void cmd.action();
+                      setOpen(false);
+                    }}
+                  >
+                    <span>{cmd.label}</span>
+                    {cmd.shortcut && (
+                      <div className="ml-4 flex gap-1">
+                        {shortcutParts(cmd.shortcut).map((part, idx) => (
+                          <kbd
+                            key={idx}
+                            className="inline-flex h-5 min-w-[20px] items-center justify-center rounded border border-zinc-300 bg-zinc-100 px-1.5 text-xs font-medium text-zinc-700"
+                          >
+                            {part}
+                          </kbd>
+                        ))}
+                      </div>
+                    )}
+                  </li>
+                );
+              })
+            )}
+          </ul>
+        </div>
+      </ScrollableDialogContent>
+    </Dialog>
   );
 }
