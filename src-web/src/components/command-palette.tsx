@@ -15,6 +15,7 @@ import {
 } from './ui/dialog';
 import type { LucideIcon } from 'lucide-react';
 import { Calculator, PlusIcon } from 'lucide-react';
+import { OPEN_COMMAND_PALETTE_EVENT } from '~/lib/command-palette-events.ts';
 
 type Shortcut = {
   key: string;
@@ -70,6 +71,12 @@ export function CommandPalette({
       unlisten.then((fn) => fn());
     };
   }, []);
+
+  useEffect(() => {
+    const onOpen = () => setOpen(true);
+    window.addEventListener(OPEN_COMMAND_PALETTE_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_COMMAND_PALETTE_EVENT, onOpen);
+  }, [setOpen]);
 
   const boolStatus = (value: boolean): CommandStatus => ({
     text: value ? 'On' : 'Off',
