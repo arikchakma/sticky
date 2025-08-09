@@ -59,7 +59,7 @@ export function CommandPalette({
   const [showCount, setShowCount] = useState<boolean>(true);
 
   const inputRef = useRef<HTMLInputElement>(null);
-  const itemRefs = useRef<Array<HTMLLIElement | null>>([]);
+  const itemRefs = useRef<(HTMLLIElement | null)[]>([]);
 
   const isMac = isMacOS();
 
@@ -209,6 +209,13 @@ export function CommandPalette({
       ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
       : 'bg-zinc-100 text-zinc-600 border border-zinc-200';
 
+  const setItemRef = useCallback(
+    (index: number) => (el: HTMLLIElement | null) => {
+      itemRefs.current[index] = el;
+    },
+    []
+  );
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <ScrollableDialogContent
@@ -254,7 +261,7 @@ export function CommandPalette({
                 const status = cmd.getStatus?.();
                 return (
                   <li
-                    ref={(el) => (itemRefs.current[i] = el)}
+                    ref={setItemRef(i)}
                     id={`cmd-${i}`}
                     key={i}
                     className={`flex cursor-pointer items-center justify-between rounded px-2 py-2 text-sm ${
