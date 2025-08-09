@@ -44,7 +44,11 @@ export function CommandPalette({
   onOpenChange,
 }: CommandPaletteProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const open = isOpen;
+  const [query, setQuery] = useState('');
+  const [focusedIdx, setFocusedIdx] = useState(0);
+  const [showCount, setShowCount] = useState(true);
+  const inputRef = useRef<HTMLInputElement>(null);
+
   const setOpen = useCallback(
     (v: boolean) => {
       setIsOpen(v);
@@ -52,15 +56,6 @@ export function CommandPalette({
     },
     [onOpenChange]
   );
-
-  const [query, setQuery] = useState('');
-  const [focusedIdx, setFocusedIdx] = useState(0);
-  const [showCount, setShowCount] = useState<boolean>(true);
-
-  const inputRef = useRef<HTMLInputElement>(null);
-  const itemRefs = useRef<(HTMLLIElement | null)[]>([]);
-
-  const isMac = isMacOS();
 
   useEffect(() => {
     getShowWordCount().then(setShowCount);
@@ -84,6 +79,7 @@ export function CommandPalette({
   const shortcutParts = (s?: Shortcut): string[] => {
     if (!s) return [];
     const parts: string[] = [];
+    const isMac = isMacOS();
     if (isMac) {
       if (s.meta) parts.push('⌘');
       if (s.ctrl) parts.push('⌃');
@@ -132,36 +128,45 @@ export function CommandPalette({
     return q ? commands.filter((c) => norm(c.label).includes(q)) : commands;
   }, [commands, query]);
 
-  const isEmpty = filtered.length === 0;
-
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        setOpen(!open);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [open, setOpen]);
-
-  useEffect(() => {
-    if (!open) return;
-    setQuery('');
-    setFocusedIdx(0);
-    const id = requestAnimationFrame(() => inputRef.current?.focus());
-    return () => cancelAnimationFrame(id);
-  }, [open]);
-
-  useEffect(() => {
-    itemRefs.current[focusedIdx]?.scrollIntoView({ block: 'nearest' });
-  }, [focusedIdx]);
-
   const matchShortcut = (e: KeyboardEvent | React.KeyboardEvent, s: Shortcut) =>
     e.key.toLowerCase() === s.key.toLowerCase() &&
     (!s.meta || ('metaKey' in e && e.metaKey)) &&
     (!s.ctrl || ('ctrlKey' in e && e.ctrlKey)) &&
     (!s.shift || ('shiftKey' in e && e.shiftKey));
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setOpen(!isOpen);
+        return;
+      }
+      if (!isOpen) {
+        for (const c of commands) {
+          if (c.shortcut && matchShortcut(e, c.shortcut)) {
+            e.preventDefault();
+            c.action();
+            return;
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, commands, setOpen]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setQuery('');
+      setFocusedIdx(0);
+      requestAnimationFrame(() => inputRef.current?.focus());
+    }
+  }, [isOpen]);
+
+  const badgeClass = (v: CommandStatus['variant']) =>
+    v === 'on'
+      ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+      : 'bg-zinc-100 text-zinc-600 border border-zinc-200';
 
   const onInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     const hotkeyCmd = filtered.find(
@@ -194,35 +199,8 @@ export function CommandPalette({
     }
   };
 
-  useEffect(() => {
-    if (open) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      for (const c of commands) {
-        if (c.shortcut && matchShortcut(e, c.shortcut)) {
-          e.preventDefault();
-          c.action();
-          return;
-        }
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [open, commands]);
-
-  const badgeClass = (v: CommandStatus['variant']) =>
-    v === 'on'
-      ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-      : 'bg-zinc-100 text-zinc-600 border border-zinc-200';
-
-  const setItemRef = useCallback(
-    (index: number) => (el: HTMLLIElement | null) => {
-      itemRefs.current[index] = el;
-    },
-    []
-  );
-
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={isOpen} onOpenChange={setOpen}>
       <ScrollableDialogContent
         onCloseAutoFocus={(e) => e.preventDefault()}
         showCloseButton={false}
@@ -249,13 +227,8 @@ export function CommandPalette({
         </div>
 
         <div className="max-h-60 overflow-y-auto py-2">
-          <ul
-            id="command-listbox"
-            role="listbox"
-            aria-activedescendant={`cmd-${focusedIdx}`}
-            className="flex flex-col px-2"
-          >
-            {isEmpty ? (
+          <ul className="flex flex-col px-2">
+            {filtered.length === 0 ? (
               <li className="px-2 py-2 text-sm italic text-zinc-400">
                 No matching commands
               </li>
@@ -266,14 +239,10 @@ export function CommandPalette({
                 const status = cmd.getStatus?.();
                 return (
                   <li
-                    ref={setItemRef(i)}
-                    id={`cmd-${i}`}
-                    key={i}
-                    className={`flex cursor-pointer items-center justify-between rounded px-2 py-2 text-sm ${
-                      focused ? 'bg-zinc-100' : ''
-                    }`}
+                    key={cmd.label}
+                    className={`flex cursor-pointer items-center justify-between rounded px-2 py-2 text-sm ${focused ? 'bg-zinc-100' : ''}`}
                     onMouseEnter={() => setFocusedIdx(i)}
-                    onMouseDown={(e) => {
+                    onClick={(e) => {
                       e.preventDefault();
                       void cmd.action();
                       setOpen(false);
@@ -286,9 +255,7 @@ export function CommandPalette({
                     <div className="ml-4 flex items-center gap-2">
                       {status && (
                         <span
-                          className={`inline-flex h-5 items-center rounded px-1.5 text-[10px] font-medium ${badgeClass(
-                            status.variant
-                          )}`}
+                          className={`inline-flex h-5 items-center rounded px-1.5 text-[10px] font-medium ${badgeClass(status.variant)}`}
                         >
                           {status.text}
                         </span>
