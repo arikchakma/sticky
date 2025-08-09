@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { isMacOS } from '~/lib/detect-browser';
-import { getShowWordCount, setShowWordCount } from '~/lib/settings';
+import {
+  getShowWordCount,
+  listenShowWordCount,
+  setShowWordCount,
+} from '~/lib/settings';
 import { Input } from './ui/input';
 import {
   Dialog,
@@ -9,6 +13,8 @@ import {
   DialogTitle,
   ScrollableDialogContent,
 } from './ui/dialog';
+import type { LucideIcon } from 'lucide-react';
+import { Calculator, PlusIcon } from 'lucide-react';
 
 type Shortcut = {
   key: string;
@@ -17,11 +23,14 @@ type Shortcut = {
   shift?: boolean;
 };
 
+type CommandStatus = { text: string; variant: 'on' | 'off' };
+
 type Command = {
-  id: string;
   label: string;
   action: () => void | Promise<void>;
   shortcut?: Shortcut;
+  icon?: LucideIcon;
+  getStatus?: () => CommandStatus | undefined;
 };
 
 export type CommandPaletteProps = {
@@ -47,9 +56,25 @@ export function CommandPalette({
 
   const [query, setQuery] = useState('');
   const [focusedIdx, setFocusedIdx] = useState(0);
+  const [showCount, setShowCount] = useState<boolean>(true);
+
   const inputRef = useRef<HTMLInputElement>(null);
   const itemRefs = useRef<Array<HTMLLIElement | null>>([]);
+
   const isMac = isMacOS();
+
+  useEffect(() => {
+    getShowWordCount().then(setShowCount);
+    const unlisten = listenShowWordCount(setShowCount);
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, []);
+
+  const boolStatus = (value: boolean): CommandStatus => ({
+    text: value ? 'On' : 'Off',
+    variant: value ? 'on' : 'off',
+  });
 
   const shortcutParts = (s?: Shortcut): string[] => {
     if (!s) return [];
@@ -67,27 +92,27 @@ export function CommandPalette({
     return parts;
   };
 
-  const toggleWordCount = useCallback(async () => {
-    const current = await getShowWordCount();
-    await setShowWordCount(!current);
+  const setDisplayCounters = useCallback(async (value: boolean) => {
+    await setShowWordCount(value);
   }, []);
 
   const commands = useMemo<Command[]>(
     () => [
       {
-        id: 'new-note',
         label: 'Create New Note',
         shortcut: { key: 'n', meta: true },
         action: onNewWindow,
+        icon: PlusIcon,
       },
       {
-        id: 'toggle-counters',
-        label: 'Toggle Word/Character Count',
+        label: 'Display Counters',
         shortcut: { key: 'c', meta: true, shift: true },
-        action: toggleWordCount,
+        action: () => setDisplayCounters(!showCount),
+        icon: Calculator,
+        getStatus: () => boolStatus(showCount),
       },
     ],
-    [onNewWindow, toggleWordCount]
+    [onNewWindow, setDisplayCounters, showCount]
   );
 
   const norm = (s: string) =>
@@ -124,8 +149,7 @@ export function CommandPalette({
   }, [open]);
 
   useEffect(() => {
-    const el = itemRefs.current[focusedIdx];
-    el?.scrollIntoView({ block: 'nearest' });
+    itemRefs.current[focusedIdx]?.scrollIntoView({ block: 'nearest' });
   }, [focusedIdx]);
 
   const matchShortcut = (e: KeyboardEvent | React.KeyboardEvent, s: Shortcut) =>
@@ -180,6 +204,11 @@ export function CommandPalette({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [open, commands]);
 
+  const badgeClass = (v: CommandStatus['variant']) =>
+    v === 'on'
+      ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+      : 'bg-zinc-100 text-zinc-600 border border-zinc-200';
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <ScrollableDialogContent
@@ -192,6 +221,7 @@ export function CommandPalette({
           <DialogTitle>Command Palette</DialogTitle>
           <DialogDescription>Run actions quickly</DialogDescription>
         </DialogHeader>
+
         <div className="border-b border-zinc-200">
           <Input
             ref={inputRef}
@@ -205,11 +235,12 @@ export function CommandPalette({
             onKeyDown={onInputKeyDown}
           />
         </div>
+
         <div className="max-h-60 overflow-y-auto py-2">
           <ul
             id="command-listbox"
             role="listbox"
-            aria-activedescendant={filtered[focusedIdx]?.id ?? undefined}
+            aria-activedescendant={`cmd-${focusedIdx}`}
             className="flex flex-col px-2"
           >
             {isEmpty ? (
@@ -219,11 +250,13 @@ export function CommandPalette({
             ) : (
               filtered.map((cmd, i) => {
                 const focused = i === focusedIdx;
+                const Icon = cmd.icon;
+                const status = cmd.getStatus?.();
                 return (
                   <li
                     ref={(el) => (itemRefs.current[i] = el)}
-                    id={cmd.id}
-                    key={cmd.id}
+                    id={`cmd-${i}`}
+                    key={i}
                     className={`flex cursor-pointer items-center justify-between rounded px-2 py-2 text-sm ${
                       focused ? 'bg-zinc-100' : ''
                     }`}
@@ -234,19 +267,33 @@ export function CommandPalette({
                       setOpen(false);
                     }}
                   >
-                    <span>{cmd.label}</span>
-                    {cmd.shortcut && (
-                      <div className="ml-4 flex gap-1">
-                        {shortcutParts(cmd.shortcut).map((part, idx) => (
-                          <kbd
-                            key={idx}
-                            className="inline-flex h-5 min-w-[20px] items-center justify-center rounded border border-zinc-300 bg-zinc-100 px-1.5 text-xs font-medium text-zinc-700"
-                          >
-                            {part}
-                          </kbd>
-                        ))}
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {Icon && <Icon className="h-4 w-4 text-zinc-500" />}
+                      <span>{cmd.label}</span>
+                    </div>
+                    <div className="ml-4 flex items-center gap-2">
+                      {status && (
+                        <span
+                          className={`inline-flex h-5 items-center rounded px-1.5 text-[10px] font-medium ${badgeClass(
+                            status.variant
+                          )}`}
+                        >
+                          {status.text}
+                        </span>
+                      )}
+                      {cmd.shortcut && (
+                        <div className="flex gap-1">
+                          {shortcutParts(cmd.shortcut).map((part, idx) => (
+                            <kbd
+                              key={idx}
+                              className="inline-flex h-5 min-w-[20px] items-center justify-center rounded border border-zinc-300 bg-zinc-100 px-1.5 text-xs font-medium text-zinc-700"
+                            >
+                              {part}
+                            </kbd>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </li>
                 );
               })
