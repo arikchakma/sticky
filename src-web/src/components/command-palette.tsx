@@ -15,7 +15,7 @@ import {
 } from './ui/dialog';
 import type { LucideIcon } from 'lucide-react';
 import { Calculator, PlusIcon } from 'lucide-react';
-import { OPEN_COMMAND_PALETTE_EVENT } from '~/lib/command-palette-events.ts';
+import { OPEN_COMMAND_PALETTE_EVENT } from '~/lib/command-palette-events';
 
 type Shortcut = {
   key: string;
@@ -36,23 +36,21 @@ type Command = {
 
 export type CommandPaletteProps = {
   onNewWindow: () => void | Promise<void>;
-  open?: boolean;
   onOpenChange?: (open: boolean) => void;
 };
 
 export function CommandPalette({
   onNewWindow,
-  open: openProp,
   onOpenChange,
 }: CommandPaletteProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const open = openProp ?? isOpen;
+  const open = isOpen;
   const setOpen = useCallback(
     (v: boolean) => {
-      if (openProp === undefined) setIsOpen(v);
+      setIsOpen(v);
       onOpenChange?.(v);
     },
-    [openProp, onOpenChange]
+    [onOpenChange]
   );
 
   const [query, setQuery] = useState('');
