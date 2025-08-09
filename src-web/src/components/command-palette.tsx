@@ -1,4 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  currentMonitor,
+  getCurrentWindow,
+  PhysicalSize,
+} from '@tauri-apps/api/window';
 import { isMacOS } from '~/lib/detect-browser';
 import { getShowWordCount, setShowWordCount } from '~/lib/settings';
 
@@ -24,6 +29,8 @@ export function CommandPalette({ onNewWindow }: CommandPaletteProps) {
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const prevWindowSizeRef = useRef<PhysicalSize | null>(null);
 
   const isMac = useMemo(isMacOS, []);
 
@@ -112,6 +119,49 @@ export function CommandPalette({ onNewWindow }: CommandPaletteProps) {
     setSelected(0);
   }, [open]);
 
+  useEffect(() => {
+    const adjustHeight = async () => {
+      if (!open) {
+        const prevSize = prevWindowSizeRef.current;
+        if (!prevSize) {
+          return;
+        }
+
+        prevWindowSizeRef.current = null;
+        await getCurrentWindow().setSize(prevSize);
+        return;
+      }
+
+      const panel = containerRef.current;
+      if (!panel) {
+        return;
+      }
+
+      const rect = panel.getBoundingClientRect();
+      const requiredHeight = rect.bottom + 40;
+
+      if (requiredHeight <= window.innerHeight) {
+        return;
+      }
+
+      const monitor = await currentMonitor();
+      const scaleFactor = monitor?.scaleFactor ?? 1;
+      const currentWindow = getCurrentWindow();
+      const currentSize = await currentWindow.outerSize();
+
+      if (!prevWindowSizeRef.current) {
+        prevWindowSizeRef.current = currentSize;
+      }
+
+      const newHeight = Math.ceil(requiredHeight * scaleFactor);
+      await currentWindow.setSize(
+        new PhysicalSize(currentSize.width, newHeight)
+      );
+    };
+
+    adjustHeight();
+  }, [open, filtered.length]);
+
   const handleKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -138,7 +188,10 @@ export function CommandPalette({ onNewWindow }: CommandPaletteProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4">
-      <div className="mt-6 w-full max-w-sm rounded-md bg-white p-2 shadow-lg">
+      <div
+        ref={containerRef}
+        className="mt-6 w-full max-w-sm rounded-md bg-white p-2 shadow-lg"
+      >
         <input
           ref={inputRef}
           value={query}
