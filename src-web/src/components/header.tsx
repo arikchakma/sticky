@@ -1,7 +1,8 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { PlusIcon } from 'lucide-react';
+import { Command as CommandIcon, PlusIcon } from 'lucide-react';
 import { forwardRef } from 'react';
 import { cn } from '~/lib/classname';
+import { openCommandPalette } from '~/lib/command-palette-events.ts';
 import { BrowseDialog, type BrowseDialogProps } from './browse-dialog';
 import { Button } from './ui/button';
 
@@ -66,6 +67,17 @@ export const Header = forwardRef<
         </div>
 
         <div className="flex items-center gap-2">
+          <Button
+            onClick={(e) => {
+              e.stopPropagation();
+              openCommandPalette();
+            }}
+            variant="ghost"
+            size="icon"
+            className="size-7 shrink-0 text-zinc-300 transition-colors duration-150 hover:text-zinc-600"
+          >
+            <CommandIcon className="h-4 w-4" />
+          </Button>
           <BrowseDialog
             activeNoteId={activeNoteId}
             onNoteClick={onNoteClick}

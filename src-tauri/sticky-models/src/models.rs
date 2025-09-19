@@ -28,6 +28,14 @@ pub enum NoteIden {
     Content,
 }
 
+#[derive(Iden)]
+pub enum SettingIden {
+    #[iden = "settings"]
+    Table,
+    Key,
+    Value,
+}
+
 impl<'s> TryFrom<&Row<'s>> for Note {
     type Error = rusqlite::Error;
 

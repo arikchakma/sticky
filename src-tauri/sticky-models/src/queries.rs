@@ -1,11 +1,12 @@
 use crate::error::Result;
-use crate::models::{ModelType, Note, NoteIden};
+use crate::models::{ModelType, Note, NoteIden, SettingIden};
 use crate::plugin::SqliteConnection;
 use chrono::{DateTime, Utc};
 use nanoid::nanoid;
 use sea_query::ColumnRef::Asterisk;
 use sea_query::Keyword::CurrentTimestamp;
 use sea_query::{Expr, OnConflict, Order, Query, SqliteQueryBuilder};
+use rusqlite::OptionalExtension;
 use sea_query_rusqlite::RusqliteBinder;
 use tauri::{AppHandle, Manager, Runtime};
 
@@ -94,6 +95,49 @@ pub async fn delete_note<R: Runtime>(
     let (sql, params) = Query::delete()
         .from_table(NoteIden::Table)
         .cond_where(Expr::col(NoteIden::Id).eq(id))
+        .build_rusqlite(SqliteQueryBuilder);
+
+    let mut stmt = db.prepare(sql.as_str())?;
+    stmt.execute(&*params.as_params())?;
+    Ok(())
+}
+
+pub async fn get_setting<R: Runtime>(
+    app_handle: &AppHandle<R>,
+    key: &str,
+) -> Result<Option<String>> {
+    let dbm = &*app_handle.state::<SqliteConnection>();
+    let db = dbm.0.lock().await.get().unwrap();
+
+    let (sql, params) = Query::select()
+        .from(SettingIden::Table)
+        .column(SettingIden::Value)
+        .cond_where(Expr::col(SettingIden::Key).eq(key))
+        .build_rusqlite(SqliteQueryBuilder);
+    let mut stmt = db.prepare(sql.as_str())?;
+    let res: Option<String> = stmt
+        .query_row(&*params.as_params(), |row| row.get(0))
+        .optional()?;
+    Ok(res)
+}
+
+pub async fn set_setting<R: Runtime>(
+    app_handle: &AppHandle<R>,
+    key: &str,
+    value: &str,
+) -> Result<()> {
+    let dbm = &*app_handle.state::<SqliteConnection>();
+    let db = dbm.0.lock().await.get().unwrap();
+
+    let (sql, params) = Query::insert()
+        .into_table(SettingIden::Table)
+        .columns([SettingIden::Key, SettingIden::Value])
+        .values_panic([key.into(), value.into()])
+        .on_conflict(
+            OnConflict::column(SettingIden::Key)
+                .update_column(SettingIden::Value)
+                .to_owned(),
+        )
         .build_rusqlite(SqliteQueryBuilder);
 
     let mut stmt = db.prepare(sql.as_str())?;
