@@ -59,11 +59,7 @@ export const Header = forwardRef<
         }}
         id={HEADER_ID}
       >
-        <div className="pointer-events-none flex items-center gap-2 pl-3.5">
-          <TrafficButton />
-          <TrafficButton />
-          <TrafficButton />
-        </div>
+        <div className="pointer-events-none w-[70px] shrink-0" />
 
         <div className="flex items-center gap-2">
           <BrowseDialog
@@ -90,9 +86,3 @@ export const Header = forwardRef<
 });
 
 Header.displayName = 'Header';
-
-type TrafficButtonProps = {};
-
-function TrafficButton(_: TrafficButtonProps) {
-  return <div className="h-3 w-3 rounded-full bg-gray-300" />;
-}

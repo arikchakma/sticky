@@ -85,6 +85,8 @@ pub(crate) fn create_window<R: Runtime>(
             use tauri::TitleBarStyle;
             win_builder = win_builder
                 .hidden_title(true)
+                .minimizable(false)
+                .maximizable(false)
                 .title_bar_style(TitleBarStyle::Overlay);
         }
     }
