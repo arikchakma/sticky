@@ -462,7 +462,7 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
           id={EDITOR_CONTENT_ID}
           editor={editor}
           ref={editorContentRef}
-          className="cursor-text! grow flex-col overflow-y-scroll"
+          className="cursor-text! grow flex-col overflow-y-scroll overscroll-contain"
           onScroll={onScroll}
           onClick={handleContentClick}
         />
