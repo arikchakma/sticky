@@ -34,12 +34,9 @@
     "lucide-react": "^0.525.0",
     "luxon": "^3.7.1",
     "prosemirror-highlight": "^0.13.0",
-    "radix-ui": "^1.4.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-textarea-autosize": "^8.5.9",
     "shiki": "^3.8.1",
-    "sonner": "^2.0.6",
     "tailwind-merge": "^3.3.1",
     "tailwindcss": "^4.1.11"
   },
