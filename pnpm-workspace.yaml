@@ -1,3 +1,7 @@
 packages:
   - 'src-web'
   - 'src-tauri/*'
+allowBuilds:
+  '@swc/core': true
+  '@tailwindcss/oxide': true
+  esbuild: true
