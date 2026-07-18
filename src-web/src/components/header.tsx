@@ -1,12 +1,10 @@
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import { invoke } from '@tauri-apps/api/core';
 import { LayersIcon, PlusIcon } from 'lucide-react';
 import { forwardRef } from 'react';
 import { cn } from '~/lib/classname';
 import { Button } from './ui/button';
 
 export const HEADER_ID = 'main-header';
-
-const currentWindow = getCurrentWindow();
 
 type HeaderProps = {
   onNewWindow: () => void;
@@ -31,7 +29,7 @@ export const Header = forwardRef<
     >
       <div
         className="flex h-full items-center justify-between pr-1"
-        onMouseDown={(e) => {
+        onMouseDown={async (e) => {
           e.stopPropagation();
           e.preventDefault();
           // if the button is not the left mouse button, return
@@ -40,12 +38,17 @@ export const Header = forwardRef<
             return;
           }
 
-          if (e.detail === 2) {
+          // WebKit's click count (e.detail) resets once the first
+          // press's native drag session swallows the mouseup, so the
+          // double click is detected on the native side instead. A
+          // single press starts the window drag.
+          const isDoubleClick = await invoke<boolean>(
+            'cmd_header_mouse_down',
+            { position: [e.screenX, e.screenY] }
+          );
+          if (isDoubleClick) {
             onDoubleClick(e);
-            return;
           }
-
-          currentWindow.startDragging();
         }}
         id={HEADER_ID}
       >

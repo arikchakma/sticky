@@ -192,6 +192,12 @@ fn traffic_light_button_class() -> &'static objc::runtime::Class {
     unsafe { &*(*cls as *const objc::runtime::Class) }
 }
 
+// The user's configured double-click speed, in seconds. Main thread
+// only.
+pub fn double_click_interval() -> f64 {
+    unsafe { msg_send![class!(NSEvent), doubleClickInterval] }
+}
+
 // Utility panels keep the overlay titlebar for their native rounded
 // corners and shadow, but show no window controls at all.
 pub fn hide_window_controls<R: Runtime>(window: &WebviewWindow<R>) {

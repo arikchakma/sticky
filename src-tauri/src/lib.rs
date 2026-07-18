@@ -51,6 +51,26 @@ async fn cmd_new_main_window(
     Ok(())
 }
 
+// A mousedown on a note's header either starts the native window drag
+// or, when it follows another press closely enough, reports a double
+// click for the frontend to act on. WebKit's own click counter
+// (e.detail) is unreliable here because the native drag session
+// started by the first press swallows the mouseup; `position` is the
+// cursor in screen coordinates.
+#[tauri::command]
+async fn cmd_header_mouse_down(
+    window: WebviewWindow,
+    position: (f64, f64),
+) -> Result<bool, String> {
+    let state = window.app_handle().state::<window::HeaderClickState>();
+    if window::register_header_click(&state, window.label(), position) {
+        return Ok(true);
+    }
+
+    window.start_dragging().map_err(|e| e.to_string())?;
+    Ok(false)
+}
+
 // Toggles the floating search panel anchored to the calling window. The
 // panel is created on first use and kept around hidden afterwards, so
 // reopening it is instant.
@@ -304,12 +324,14 @@ pub fn run() {
             app_handle.manage(AppState::default());
             app_handle.manage(window::PanelState::default());
             app_handle.manage(window::ToastState::default());
+            app_handle.manage(window::HeaderClickState::new());
 
             Ok(())
         });
 
     builder
         .invoke_handler(tauri::generate_handler![
+            cmd_header_mouse_down,
             cmd_new_child_window,
             cmd_new_main_window,
             cmd_open_link_window,
