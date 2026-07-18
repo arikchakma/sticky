@@ -220,7 +220,7 @@ pub fn create_child_window(
     inner_size: (f64, f64),
 ) -> WebviewWindow {
     let app_handle = parent_window.app_handle();
-    let label = format!("{OTHER_WINDOW_PREFIX}_{label}");
+    let label = format!("{OTHER_WINDOW_PREFIX}{label}");
     let scale_factor = parent_window.scale_factor().unwrap();
 
     let current_pos =
