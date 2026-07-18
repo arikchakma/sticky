@@ -23,6 +23,17 @@ body,
   font-variant-ligatures: none;
 }
 
+/* Window chrome (header buttons, menu bar) is visible only while the
+   mouse is inside the window, matching the native traffic lights. */
+.window-chrome {
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+html.window-hovered .window-chrome {
+  opacity: 1;
+}
+
 :not(iframe) {
   &::-webkit-scrollbar,
   &::-webkit-scrollbar-corner {

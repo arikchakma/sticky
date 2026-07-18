@@ -53,7 +53,7 @@ export const MenuBar = forwardRef<HTMLDivElement, MenuBarProps>(
           )}
         </div>
 
-        <div className="absolute right-1 top-1">
+        <div className="window-chrome absolute right-1 top-1">
           <Button
             onClick={() => setShowMenuBarItems(!showMenuBarItems)}
             variant="ghost"

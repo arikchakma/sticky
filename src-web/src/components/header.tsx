@@ -61,7 +61,7 @@ export const Header = forwardRef<
       >
         <div className="pointer-events-none w-[70px] shrink-0" />
 
-        <div className="flex items-center gap-2">
+        <div className="window-chrome flex items-center gap-2">
           <BrowseDialog
             activeNoteId={activeNoteId}
             onNoteClick={onNoteClick}

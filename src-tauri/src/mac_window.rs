@@ -55,6 +55,9 @@ const GLYPH_INSET: f64 = 4.5;
 const GLYPH_LINE_WIDTH: f64 = 1.5;
 const GLYPH_ALPHA: f64 = 0.6;
 
+// Fade duration for showing/hiding the buttons on window hover.
+const FADE_DURATION: f64 = 0.15;
+
 #[link(name = "CoreGraphics", kind = "framework")]
 extern "C" {
     fn CGPathCreateMutable() -> *mut std::ffi::c_void;
@@ -73,12 +76,11 @@ extern "C" {
     fn CGPathRelease(path: *mut std::ffi::c_void);
 }
 
-// Hovering anywhere over the traffic light cluster reveals every button's
-// glyph, mirroring native macOS. The tracking area's owner is one of our
-// buttons; from it we reach the siblings through the shared superview.
-fn set_traffic_light_glyphs_hidden(
+// Runs `f` over the three traffic light buttons, found through the
+// owner's shared superview.
+fn for_each_traffic_light(
     owner: &objc::runtime::Object,
-    hidden: bool,
+    f: impl Fn(cocoa::base::id),
 ) {
     unsafe {
         let owner_view =
@@ -92,17 +94,55 @@ fn set_traffic_light_glyphs_hidden(
             let tag = TRAFFIC_LIGHT_TAG_BASE + i;
             let sibling: cocoa::base::id =
                 msg_send![container, viewWithTag: tag];
-            if sibling == cocoa::base::nil {
-                continue;
-            }
-            let sibling_obj = &*(sibling as *const objc::runtime::Object);
-            let glyph: *mut std::ffi::c_void =
-                *sibling_obj.get_ivar("glyph_layer");
-            if !glyph.is_null() {
-                let _: () =
-                    msg_send![glyph as cocoa::base::id, setHidden: hidden];
+            if sibling != cocoa::base::nil {
+                f(sibling);
             }
         }
+    }
+}
+
+// Hovering anywhere over the traffic light cluster reveals every button's
+// glyph, mirroring native macOS.
+fn set_traffic_light_glyphs_hidden(
+    owner: &objc::runtime::Object,
+    hidden: bool,
+) {
+    for_each_traffic_light(owner, |sibling| unsafe {
+        let sibling_obj = &*(sibling as *const objc::runtime::Object);
+        let glyph: *mut std::ffi::c_void = *sibling_obj.get_ivar("glyph_layer");
+        if !glyph.is_null() {
+            let _: () = msg_send![glyph as cocoa::base::id, setHidden: hidden];
+        }
+    });
+}
+
+// The buttons are visible only while the mouse is inside the window;
+// fade them in and out through the animator proxy. The buttons are found
+// from the window's frame view, so this works from the window delegate.
+fn fade_traffic_lights(ns_window: cocoa::base::id, alpha: f64) {
+    unsafe {
+        let content_view: cocoa::base::id = msg_send![ns_window, contentView];
+        let frame_view: cocoa::base::id = msg_send![content_view, superview];
+        if frame_view == cocoa::base::nil {
+            return;
+        }
+
+        let _: () = msg_send![class!(NSAnimationContext), beginGrouping];
+        let context: cocoa::base::id =
+            msg_send![class!(NSAnimationContext), currentContext];
+        let _: () = msg_send![context, setDuration: FADE_DURATION];
+
+        for i in 0..3i64 {
+            let tag = TRAFFIC_LIGHT_TAG_BASE + i;
+            let button: cocoa::base::id =
+                msg_send![frame_view, viewWithTag: tag];
+            if button != cocoa::base::nil {
+                let animator: cocoa::base::id = msg_send![button, animator];
+                let _: () = msg_send![animator, setAlphaValue: alpha];
+            }
+        }
+
+        let _: () = msg_send![class!(NSAnimationContext), endGrouping];
     }
 }
 
@@ -237,6 +277,8 @@ fn position_traffic_lights(
                 let _: () = msg_send![circle, setTitle: empty_title];
                 let _: () = msg_send![empty_title, release];
                 let _: () = msg_send![circle, setWantsLayer: true];
+                // Hidden until the mouse enters the window.
+                let _: () = msg_send![circle, setAlphaValue: 0.0f64];
                 if i == 0 {
                     let _: () = msg_send![circle, setTarget: ns_window];
                     let _: () =
@@ -312,7 +354,7 @@ fn position_traffic_lights(
                     );
                     let tracking: id = msg_send![class!(NSTrackingArea), alloc];
                     let opts: cocoa::foundation::NSUInteger = 0x01 // MouseEnteredAndExited
-                        | 0x40; // ActiveAlways
+                        | 0x80; // ActiveAlways
                     let tracking: id = msg_send![
                         tracking,
                         initWithRect: cluster_rect
@@ -565,6 +607,38 @@ pub fn setup_traffic_light_positioner<R: Runtime>(window: &WebviewWindow<R>) {
             effectiveAppearanceDidChangedOnMainThread
         );
 
+        // The window-wide tracking area (see below) is owned by the
+        // delegate: on hover it fades the native traffic lights and mirrors
+        // the state to the webview so the HTML chrome can follow suit.
+        extern "C" fn on_mouse_entered<R: Runtime>(
+            this: &Object,
+            _cmd: Sel,
+            _event: id,
+        ) {
+            unsafe {
+                let ns_win: id = *this.get_ivar("window");
+                fade_traffic_lights(ns_win, 1.0);
+                with_window_state(&*this, |state: &mut WindowState<R>| {
+                    let label = state.window.label().to_string();
+                    let _ = state.window.emit_to(label, "window-hover", true);
+                });
+            }
+        }
+        extern "C" fn on_mouse_exited<R: Runtime>(
+            this: &Object,
+            _cmd: Sel,
+            _event: id,
+        ) {
+            unsafe {
+                let ns_win: id = *this.get_ivar("window");
+                fade_traffic_lights(ns_win, 0.0);
+                with_window_state(&*this, |state: &mut WindowState<R>| {
+                    let label = state.window.label().to_string();
+                    let _ = state.window.emit_to(label, "window-hover", false);
+                });
+            }
+        }
+
         // Note: the boxed window state is intentionally leaked — the
         // delegate (and its app_box ivar) lives for the window's lifetime.
         let window_label = window.label().to_string();
@@ -582,11 +656,13 @@ pub fn setup_traffic_light_positioner<R: Runtime>(window: &WebviewWindow<R>) {
         let delegate_name =
             format!("windowDelegate_{}_{}", window_label, random_str);
 
-        ns_win.setDelegate_(delegate!(&delegate_name, {
+        let delegate_obj = delegate!(&delegate_name, {
             window: id = ns_win,
             app_box: *mut c_void = app_box,
             toolbar: id = cocoa::base::nil,
             super_delegate: id = current_delegate,
+            (mouseEntered:) => on_mouse_entered::<R> as extern "C" fn(&Object, Sel, id),
+            (mouseExited:) => on_mouse_exited::<R> as extern "C" fn(&Object, Sel, id),
             (windowShouldClose:) => on_window_should_close as extern "C" fn(&Object, Sel, id) -> BOOL,
             (windowWillClose:) => on_window_will_close as extern "C" fn(&Object, Sel, id),
             (windowDidResize:) => on_window_did_resize::<R> as extern "C" fn(&Object, Sel, id),
@@ -607,6 +683,31 @@ pub fn setup_traffic_light_positioner<R: Runtime>(window: &WebviewWindow<R>) {
             (windowDidFailToEnterFullScreen:) => on_window_did_fail_to_enter_full_screen as extern "C" fn(&Object, Sel, id),
             (effectiveAppearanceDidChange:) => on_effective_appearance_did_change as extern "C" fn(&Object, Sel, id),
             (effectiveAppearanceDidChangedOnMainThread:) => on_effective_appearance_did_changed_on_main_thread as extern "C" fn(&Object, Sel, id)
-        }))
+        });
+
+        // Window-wide hover tracking, active regardless of key state.
+        // InVisibleRect keeps the rect in sync with resizes.
+        {
+            use cocoa::foundation::{NSPoint, NSRect, NSSize};
+
+            let content_view: id = msg_send![ns_win, contentView];
+            let tracking: id = msg_send![class!(NSTrackingArea), alloc];
+            let opts: NSUInteger = 0x01 // MouseEnteredAndExited
+                | 0x80 // ActiveAlways
+                | 0x200; // InVisibleRect
+            let zero_rect =
+                NSRect::new(NSPoint::new(0.0, 0.0), NSSize::new(0.0, 0.0));
+            let tracking: id = msg_send![
+                tracking,
+                initWithRect: zero_rect
+                options: opts
+                owner: delegate_obj
+                userInfo: cocoa::base::nil
+            ];
+            let _: () = msg_send![content_view, addTrackingArea: tracking];
+            let _: () = msg_send![tracking, release];
+        }
+
+        ns_win.setDelegate_(delegate_obj)
     }
 }
