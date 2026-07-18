@@ -1,6 +1,11 @@
-use flexi_logger::LogSpecification;
-use flexi_logger::{Age, Cleanup, Criterion, FileSpec, Logger, Naming};
-use log::{error, warn};
+use std::io::{Result as IoResult, Write};
+
+use flexi_logger::{
+    Age, Cleanup, Criterion, DeferredNow, FileSpec, LogSpecification, Logger,
+    Naming,
+};
+use log::{error, warn, Level, Record};
+use sticky_models::error::Error;
 use sticky_models::models::Note;
 use sticky_models::queries::{delete_note, get_note, list_notes, upsert_note};
 use tauri::{
@@ -49,38 +54,33 @@ async fn cmd_new_main_window(
 #[tauri::command]
 async fn cmd_list_notes<R: Runtime>(
     app_handle: AppHandle<R>,
-) -> Result<Vec<Note>, String> {
-    list_notes(&app_handle).await.map_err(|e| e.to_string())
+) -> Result<Vec<Note>, Error> {
+    list_notes(&app_handle).await
 }
 
 #[tauri::command]
 async fn cmd_get_note<R: Runtime>(
     id: String,
     app_handle: AppHandle<R>,
-) -> Result<Note, String> {
-    get_note(&app_handle, &id).await.map_err(|e| e.to_string())
+) -> Result<Note, Error> {
+    get_note(&app_handle, &id).await
 }
 
 #[tauri::command]
 async fn cmd_upsert_note<R: Runtime>(
     note: Note,
     app_handle: AppHandle<R>,
-) -> Result<Note, String> {
-    upsert_note(&app_handle, note).await.map_err(|e| e.to_string())
+) -> Result<Note, Error> {
+    upsert_note(&app_handle, note).await
 }
 
 #[tauri::command]
 async fn cmd_delete_note<R: Runtime>(
     note_id: String,
     app_handle: AppHandle<R>,
-) -> Result<(), String> {
-    delete_note(&app_handle, &note_id).await.map_err(|e| e.to_string())
+) -> Result<(), Error> {
+    delete_note(&app_handle, &note_id).await
 }
-
-// Custom colored format for logging
-use flexi_logger::DeferredNow;
-use log::{Level, Record};
-use std::io::{Result as IoResult, Write};
 
 pub fn custom_colored_format(
     w: &mut dyn Write,
@@ -103,35 +103,12 @@ pub fn custom_colored_format(
     let timestamp = now.format("%Y-%m-%d %H:%M:%S");
     let module = record.module_path().unwrap_or("<unknown>");
 
-    if msg_fg_highlight {
-        write!(
-            w,
-            "{ts_color}{timestamp}{reset} [{level_color}{level_str}{reset}]\n[{module_color}{module}{reset}] {msg_color}{msg}{reset}\n",
-            ts_color = timestamp_color,
-            timestamp = timestamp,
-            reset = reset,
-            level_color = level_color,
-            level_str = level_str,
-            module_color = module_color,
-            module = module,
-            msg_color = msg_color,
-            msg = record.args(),
-        )
-    } else {
-        write!(
-            w,
-            "{ts_color}{timestamp}{reset} [{level_color}{level_str}{reset}] \n[{module_color}{module}{reset}] {msg_color}{msg}{reset}\n",
-            ts_color = timestamp_color,
-            timestamp = timestamp,
-            reset = reset,
-            level_color = level_color,
-            level_str = level_str,
-            module_color = module_color,
-            module = module,
-            msg_color = msg_color,
-            msg = record.args()
-        )
-    }
+    let space = if msg_fg_highlight { "" } else { " " };
+    write!(
+        w,
+        "{timestamp_color}{timestamp}{reset} [{level_color}{level_str}{reset}]{space}\n[{module_color}{module}{reset}] {msg_color}{msg}{reset}\n",
+        msg = record.args(),
+    )
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
