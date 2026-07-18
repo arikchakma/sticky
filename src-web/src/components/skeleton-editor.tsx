@@ -18,7 +18,7 @@ import {
   type JSONContent,
 } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { toast } from 'sonner';
 import { Divider } from '~/components/divider';
 import { Header, HEADER_ID } from '~/components/header';
@@ -77,7 +77,6 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
 
   const navigate = useNavigate();
 
-  const prevWindowSizeRef = useRef<PhysicalSize | null>(null);
   const shouldStopAutoResizeRef = useRef<boolean>(getIsManuallyResized());
   const isProgrammaticResizeRef = useRef<boolean>(false);
 
@@ -367,74 +366,41 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
     [editor]
   );
 
-  const restoreWindowSize = useCallback(async () => {
-    const prevWindowSize = prevWindowSizeRef.current;
-    if (!prevWindowSize) {
-      return;
-    }
+  // Notes are browsed in a floating native search panel (see the /search
+  // route); it reports selections back through window-targeted events.
+  const handleBrowse = useCallback(async () => {
+    await invoke('cmd_open_search_window', {
+      activeNoteId: currentNoteId,
+    });
+  }, [currentNoteId]);
 
+  useEffect(() => {
     const currentWindow = getCurrentWindow();
-    prevWindowSizeRef.current = null;
-    isProgrammaticResizeRef.current = true;
-    await currentWindow.setSize(prevWindowSize);
-    editor.commands.focus();
-  }, []);
 
-  const handleDeleteNote = useCallback(async () => {
-    await restoreWindowSize();
-    navigate({ to: '/new', replace: true });
-  }, [navigate, restoreWindowSize]);
-
-  const handleNoteClick = useCallback(
-    async (note: Note) => {
-      await restoreWindowSize();
-      navigate({
-        to: '/$noteId',
-        params: {
-          noteId: note.id,
-        },
-      });
-    },
-    [navigate, restoreWindowSize]
-  );
-
-  const handleOpenChange = useCallback(async (open: boolean) => {
-    const prevWindowSize = prevWindowSizeRef.current;
-
-    const monitor = await currentMonitor();
-    if (!monitor) {
-      return;
-    }
-
-    const scaleFactor = monitor.scaleFactor;
-    const currentWindow = getCurrentWindow();
-    const currentSize = await currentWindow.outerSize();
-    prevWindowSizeRef.current = currentSize;
-
-    const OPEN_HEIGHT = 500 * scaleFactor;
-
-    if (!open) {
-      if (!prevWindowSize) {
-        return;
+    const unlistenSelected = currentWindow.listen<string>(
+      'search:note-selected',
+      (event) => {
+        navigate({
+          to: '/$noteId',
+          params: {
+            noteId: event.payload,
+          },
+        });
       }
-
-      prevWindowSizeRef.current = null;
-      isProgrammaticResizeRef.current = true;
-      await currentWindow.setSize(prevWindowSize);
-      editor.commands.focus();
-      return;
-    }
-
-    const isLessThan500 = currentSize.height < OPEN_HEIGHT;
-    if (!isLessThan500) {
-      return;
-    }
-
-    isProgrammaticResizeRef.current = true;
-    await currentWindow.setSize(
-      new PhysicalSize(currentSize.width, OPEN_HEIGHT)
     );
-  }, []);
+
+    const unlistenDeleted = currentWindow.listen(
+      'search:active-note-deleted',
+      () => {
+        navigate({ to: '/new', replace: true });
+      }
+    );
+
+    return () => {
+      unlistenSelected.then((fn) => fn());
+      unlistenDeleted.then((fn) => fn());
+    };
+  }, [navigate]);
 
   useOnFocusChanged(() => {
     queryClient.invalidateQueries(listNotesOptions());
@@ -444,12 +410,9 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
     <main>
       <Header
         ref={headerRef}
-        activeNoteId={currentNoteId}
         onNewWindow={handleNewWindow}
         onDoubleClick={handleDoubleClick}
-        onNoteClick={handleNoteClick}
-        onOpenChange={handleOpenChange}
-        onNoteDelete={handleDeleteNote}
+        onBrowse={handleBrowse}
       />
 
       <div className="mt-[var(--window-menu-height)] flex h-[calc(100vh-var(--window-menu-height))] flex-col">

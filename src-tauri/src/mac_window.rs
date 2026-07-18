@@ -192,6 +192,68 @@ fn traffic_light_button_class() -> &'static objc::runtime::Class {
     unsafe { &*(*cls as *const objc::runtime::Class) }
 }
 
+// The search panel keeps the overlay titlebar for its native rounded
+// corners and shadow, but shows no window controls at all.
+pub fn hide_window_controls<R: Runtime>(window: &WebviewWindow<R>) {
+    use cocoa::appkit::{NSWindow, NSWindowButton};
+    use cocoa::base::id;
+
+    let ns_window = window
+        .ns_window()
+        .expect("NS window should exist to hide window controls")
+        as id;
+
+    #[allow(unexpected_cfgs)]
+    unsafe {
+        for kind in [
+            NSWindowButton::NSWindowCloseButton,
+            NSWindowButton::NSWindowMiniaturizeButton,
+            NSWindowButton::NSWindowZoomButton,
+        ] {
+            let button = ns_window.standardWindowButton_(kind);
+            let _: () = msg_send![button, setHidden: true];
+        }
+    }
+}
+
+// Anchors the search panel horizontally centered on its parent window,
+// with its top edge top_offset points below the parent's. Positioned
+// through the NSWindow frames directly so the math holds on any screen,
+// unlike top-left coordinate conversions.
+pub fn anchor_panel_to_parent<R: Runtime>(
+    panel: &WebviewWindow<R>,
+    parent: &WebviewWindow<R>,
+    top_offset: f64,
+) {
+    use cocoa::appkit::NSWindow;
+    use cocoa::base::id;
+    use cocoa::foundation::{NSPoint, NSRect};
+
+    let panel_window =
+        panel.ns_window().expect("NS window should exist to anchor panel")
+            as id;
+    let parent_window = parent
+        .ns_window()
+        .expect("Parent NS window should exist to anchor panel")
+        as id;
+
+    #[allow(unexpected_cfgs)]
+    unsafe {
+        let parent_frame: NSRect = NSWindow::frame(parent_window);
+        let panel_frame: NSRect = NSWindow::frame(panel_window);
+
+        // Cocoa frames use a bottom-left origin with y growing upwards.
+        let origin = NSPoint::new(
+            parent_frame.origin.x
+                + (parent_frame.size.width - panel_frame.size.width) / 2.0,
+            parent_frame.origin.y + parent_frame.size.height
+                - top_offset
+                - panel_frame.size.height,
+        );
+        let _: () = msg_send![panel_window, setFrameOrigin: origin];
+    }
+}
+
 fn position_traffic_lights(
     ns_window_handle: UnsafeWindowHandle,
     x: f64,
@@ -429,17 +491,16 @@ pub fn setup_traffic_light_positioner<R: Runtime>(window: &WebviewWindow<R>) {
     }
 
     // Re-run positioning so the traffic lights keep their placement and
-    // pick up the colors for the window's current key state.
+    // pick up the colors for the window's current key state. The
+    // NSWindow comes from the delegate's ivar rather than back through
+    // Tauri: these callbacks can fire while the runtime's window map is
+    // mutably borrowed (e.g. when another window mid-close hands over
+    // key status), where re-entering Tauri panics on the RefCell.
     fn reposition_from_state<R: Runtime>(this: &Object) {
+        let ns_win: cocoa::base::id = unsafe { *this.get_ivar("window") };
         with_window_state(this, |state: &mut WindowState<R>| {
-            let id = state
-                .window
-                .ns_window()
-                .expect("NS window should exist on state to reposition")
-                as cocoa::base::id;
-
             position_traffic_lights(
-                UnsafeWindowHandle(id as *mut std::ffi::c_void),
+                UnsafeWindowHandle(ns_win as *mut c_void),
                 WINDOW_CONTROL_PAD_X,
                 WINDOW_CONTROL_PAD_Y,
                 state.window.label().to_string(),

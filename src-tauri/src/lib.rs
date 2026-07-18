@@ -9,8 +9,8 @@ use sticky_models::error::Error;
 use sticky_models::models::Note;
 use sticky_models::queries::{delete_note, get_note, list_notes, upsert_note};
 use tauri::{
-    include_image, tray::TrayIconBuilder, App, AppHandle, Manager, RunEvent,
-    Runtime, WebviewWindow, WindowEvent,
+    include_image, tray::TrayIconBuilder, App, AppHandle, Emitter, Manager,
+    RunEvent, Runtime, WebviewWindow, WindowEvent,
 };
 use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
 
@@ -48,6 +48,37 @@ async fn cmd_new_main_window(
     position: Option<(f64, f64)>,
 ) -> Result<(), String> {
     window::create_main_window(&app_handle, url, size, position);
+    Ok(())
+}
+
+// Toggles the floating search panel anchored to the calling window. The
+// panel is created on first use and kept around hidden afterwards, so
+// reopening it is instant.
+#[tauri::command]
+async fn cmd_open_search_window(
+    window: WebviewWindow,
+    active_note_id: Option<String>,
+) -> Result<(), String> {
+    let label = window::search_window_label(window.label());
+    if let Some(w) = window.app_handle().webview_windows().get(&label) {
+        if w.is_visible().unwrap_or(false) {
+            let _ = w.hide();
+        } else if !window::search_panel_recently_hidden(
+            window.app_handle(),
+            &label,
+        ) {
+            let _ = w.emit_to(label.as_str(), "search:reset", active_note_id);
+            window::present_search_window(&window, w);
+        }
+        return Ok(());
+    }
+
+    let mut url = format!("/search?parent={}", window.label());
+    if let Some(id) = active_note_id {
+        url.push_str(&format!("&noteId={id}"));
+    }
+
+    window::create_search_window(&window, &url);
     Ok(())
 }
 
@@ -152,6 +183,11 @@ pub fn run() {
         .plugin(
             tauri_plugin_window_state::Builder::new()
                 .skip_initial_state(&format!("{MAIN_WINDOW_PREFIX}0"))
+                // Utility windows (like the search panel) are positioned
+                // by the app; restoring a saved state would override it.
+                .with_filter(|label| {
+                    !label.starts_with(window::OTHER_WINDOW_PREFIX)
+                })
                 .build(),
         )
         .plugin(tauri_plugin_dialog::init())
@@ -169,6 +205,7 @@ pub fn run() {
             let _ =
                 TrayIconBuilder::new().icon(image).build(app_handle).unwrap();
             app_handle.manage(AppState::default());
+            app_handle.manage(window::SearchPanelState::default());
 
             Ok(())
         });
@@ -177,6 +214,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             cmd_new_child_window,
             cmd_new_main_window,
+            cmd_open_search_window,
             cmd_list_notes,
             cmd_get_note,
             cmd_upsert_note,
@@ -220,8 +258,15 @@ pub fn run() {
                     debug_log!("Window close requested: {}", label);
                     let is_first_main_window =
                         label == format!("{MAIN_WINDOW_PREFIX}0");
+                    // Utility windows (like the search panel) don't count
+                    // towards the "last window standing" check.
+                    let main_window_count = app_handle
+                        .webview_windows()
+                        .keys()
+                        .filter(|l| l.starts_with(MAIN_WINDOW_PREFIX))
+                        .count();
                     if !label.starts_with(window::OTHER_WINDOW_PREFIX)
-                        && !(app_handle.webview_windows().len() > 1)
+                        && main_window_count <= 1
                         && is_first_main_window
                     {
                         if let Err(e) =

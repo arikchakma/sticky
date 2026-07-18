@@ -1,8 +1,7 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { PlusIcon } from 'lucide-react';
+import { LayersIcon, PlusIcon } from 'lucide-react';
 import { forwardRef } from 'react';
 import { cn } from '~/lib/classname';
-import { BrowseDialog, type BrowseDialogProps } from './browse-dialog';
 import { Button } from './ui/button';
 
 export const HEADER_ID = 'main-header';
@@ -10,25 +9,16 @@ export const HEADER_ID = 'main-header';
 const currentWindow = getCurrentWindow();
 
 type HeaderProps = {
-  activeNoteId?: string;
   onNewWindow: () => void;
+  onBrowse: () => void;
   onDoubleClick: (e: React.MouseEvent<HTMLDivElement>) => void;
-} & BrowseDialogProps;
+};
 
 export const Header = forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & HeaderProps
 >((props, ref) => {
-  const {
-    className,
-    activeNoteId,
-    onNewWindow,
-    onDoubleClick,
-    onNoteClick,
-    onOpenChange,
-    onNoteDelete,
-    ...rest
-  } = props;
+  const { className, onNewWindow, onBrowse, onDoubleClick, ...rest } = props;
 
   return (
     <header
@@ -62,12 +52,17 @@ export const Header = forwardRef<
         <div className="pointer-events-none w-[70px] shrink-0" />
 
         <div className="window-chrome flex items-center gap-2">
-          <BrowseDialog
-            activeNoteId={activeNoteId}
-            onNoteClick={onNoteClick}
-            onOpenChange={onOpenChange}
-            onNoteDelete={onNoteDelete}
-          />
+          <Button
+            onClick={(e) => {
+              e.stopPropagation();
+              onBrowse();
+            }}
+            variant="ghost"
+            size="icon"
+            className="size-7 shrink-0 text-zinc-300 transition-colors duration-150 hover:text-zinc-600"
+          >
+            <LayersIcon className="h-4 w-4" />
+          </Button>
           <Button
             onClick={(e) => {
               e.stopPropagation();

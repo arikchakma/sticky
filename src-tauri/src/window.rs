@@ -1,3 +1,7 @@
+use std::collections::HashMap;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
+
 use tauri::{
     AppHandle, Manager, Runtime, WebviewUrl, WebviewWindow, WindowEvent,
 };
@@ -17,6 +21,42 @@ pub const MIN_WINDOW_HEIGHT: f64 = 115.0;
 
 pub const MAX_WINDOW_WIDTH: f64 = 700.0;
 
+pub const SEARCH_WINDOW_MIN_WIDTH: f64 = 360.0;
+pub const SEARCH_WINDOW_MAX_WIDTH: f64 = 480.0;
+// Maximum panel height; the frontend shrinks the window to fit its
+// content. Keep in sync with MAX_PANEL_HEIGHT in src-web's search route.
+pub const SEARCH_WINDOW_HEIGHT: f64 = 430.0;
+// Horizontal inset from the parent window's edges, and the distance
+// between the parent's top edge and the panel's.
+pub const SEARCH_WINDOW_INSET: f64 = 16.0;
+pub const SEARCH_WINDOW_TOP_OFFSET: f64 = 50.0;
+
+// Clicking the toggle button while the panel is open blurs the panel
+// first (hiding it) and only then delivers the click, which would
+// instantly re-present it. Reopens within this grace period of a
+// blur-hide are treated as that same click and ignored.
+pub const SEARCH_TOGGLE_GRACE: Duration = Duration::from_millis(300);
+
+// When each search panel was last hidden because it lost focus,
+// keyed by the panel's label.
+#[derive(Default)]
+pub struct SearchPanelState(pub Mutex<HashMap<String, Instant>>);
+
+pub fn search_panel_recently_hidden<R: Runtime>(
+    app_handle: &AppHandle<R>,
+    label: &str,
+) -> bool {
+    let state = app_handle.state::<SearchPanelState>();
+    let hidden_at = state.0.lock().expect("Search panel state poisoned");
+    hidden_at.get(label).is_some_and(|at| at.elapsed() < SEARCH_TOGGLE_GRACE)
+}
+
+fn mark_search_panel_hidden<R: Runtime>(window: &WebviewWindow<R>) {
+    let state = window.app_handle().state::<SearchPanelState>();
+    let mut hidden_at = state.0.lock().expect("Search panel state poisoned");
+    hidden_at.insert(window.label().to_string(), Instant::now());
+}
+
 #[derive(Default, Debug)]
 pub(crate) struct CreateWindowConfig<'s> {
     pub url: &'s str,
@@ -29,6 +69,9 @@ pub(crate) struct CreateWindowConfig<'s> {
     pub hide_titlebar: bool,
     pub always_on_top: bool,
     pub max_size: Option<(Option<f64>, Option<f64>)>,
+    pub fixed_size: bool,
+    // Created invisible, for windows that are positioned after creation.
+    pub start_hidden: bool,
 }
 
 pub(crate) fn create_window<R: Runtime>(
@@ -51,10 +94,18 @@ pub(crate) fn create_window<R: Runtime>(
         WebviewUrl::App(config.url.into()),
     )
     .title(config.title)
-    .resizable(true)
+    .resizable(!config.fixed_size)
     .fullscreen(false)
-    .disable_drag_drop_handler() // Required for frontend Dnd on windows
-    .min_inner_size(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT);
+    .disable_drag_drop_handler(); // Required for frontend Dnd on windows
+
+    if !config.fixed_size {
+        win_builder =
+            win_builder.min_inner_size(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT);
+    }
+
+    if config.start_hidden {
+        win_builder = win_builder.visible(false);
+    }
 
     if let Some((w, h)) = config.inner_size {
         win_builder = win_builder.inner_size(w, h);
@@ -137,7 +188,14 @@ pub(crate) fn create_window<R: Runtime>(
         use tauri_plugin_opener::OpenerExt;
 
         use crate::mac_window;
-        mac_window::setup_traffic_light_positioner(&win);
+
+        // AppKit is main-thread-only; windows can be created from async
+        // commands, which run on a worker thread.
+        let traffic_light_window = win.clone();
+        win.run_on_main_thread(move || {
+            mac_window::setup_traffic_light_positioner(&traffic_light_window)
+        })
+        .expect("Failed to set up traffic lights on the main thread");
 
         win.on_menu_event(move |w, event| {
             if !w.is_focused().unwrap() {
@@ -210,6 +268,120 @@ pub fn create_main_window(
     };
 
     create_window(handle, config)
+}
+
+pub fn search_window_label(parent_label: &str) -> String {
+    format!("{OTHER_WINDOW_PREFIX}search_{parent_label}")
+}
+
+// A floating search panel anchored to a note window, behaving like a
+// native pop-over: fixed size, no window controls, and dismissed as
+// soon as it loses focus.
+pub fn create_search_window(
+    parent_window: &WebviewWindow,
+    url: &str,
+) -> WebviewWindow {
+    let app_handle = parent_window.app_handle();
+    let label = search_window_label(parent_window.label());
+    let scale_factor = parent_window.scale_factor().unwrap();
+
+    let parent_size =
+        parent_window.outer_size().unwrap().to_logical::<f64>(scale_factor);
+
+    let width = (parent_size.width - SEARCH_WINDOW_INSET * 2.0)
+        .clamp(SEARCH_WINDOW_MIN_WIDTH, SEARCH_WINDOW_MAX_WIDTH);
+
+    let config = CreateWindowConfig {
+        url,
+        label: label.as_str(),
+        title: "Search Notes",
+        inner_size: Some((width, SEARCH_WINDOW_HEIGHT)),
+        hide_titlebar: true,
+        always_on_top: true,
+        fixed_size: true,
+        start_hidden: true,
+        ..Default::default()
+    };
+
+    let search_window = create_window(&app_handle, config);
+
+    #[cfg(target_os = "macos")]
+    {
+        // AppKit is main-thread-only; see create_window. The panel stays
+        // invisible after anchoring: the frontend shows it once it has
+        // shrunk the window to fit its content, so it never flashes at
+        // the wrong position or size.
+        let panel = search_window.clone();
+        let parent = parent_window.clone();
+        search_window
+            .clone()
+            .run_on_main_thread(move || {
+                crate::mac_window::hide_window_controls(&panel);
+                crate::mac_window::anchor_panel_to_parent(
+                    &panel,
+                    &parent,
+                    SEARCH_WINDOW_TOP_OFFSET,
+                );
+            })
+            .expect("Failed to set up the search panel on the main thread");
+    }
+
+    // The panel is created once and then kept around so reopening it is
+    // instant: dismissing only hides it, and it dies with its parent.
+    {
+        let search_window = search_window.clone();
+        search_window.clone().on_window_event(move |e| match e {
+            WindowEvent::Focused(false) => {
+                if search_window.hide().is_ok() {
+                    mark_search_panel_hidden(&search_window);
+                }
+            }
+            _ => {}
+        });
+    }
+
+    {
+        let panel = search_window.clone();
+        parent_window.on_window_event(move |e| match e {
+            WindowEvent::CloseRequested { .. } | WindowEvent::Destroyed => {
+                let _ = panel.close();
+            }
+            _ => {}
+        });
+    }
+
+    search_window
+}
+
+// Re-anchors an existing (hidden) search panel to its parent and brings
+// it back up, focused.
+pub fn present_search_window(
+    parent_window: &WebviewWindow,
+    search_window: &WebviewWindow,
+) {
+    #[cfg(target_os = "macos")]
+    {
+        let panel = search_window.clone();
+        let parent = parent_window.clone();
+        search_window
+            .run_on_main_thread(move || {
+                crate::mac_window::anchor_panel_to_parent(
+                    &panel,
+                    &parent,
+                    SEARCH_WINDOW_TOP_OFFSET,
+                );
+                let _ = panel.show();
+                let _ = panel.set_focus();
+            })
+            .expect("Failed to present the search panel on the main thread");
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = parent_window;
+        let _ = search_window.show();
+        let _ = search_window.set_focus();
+    }
 }
 
 pub fn create_child_window(
