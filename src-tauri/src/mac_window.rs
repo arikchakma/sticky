@@ -3,6 +3,8 @@
 use objc::{class, msg_send, sel, sel_impl};
 use tauri::{Emitter, Runtime, WebviewWindow};
 
+use crate::window::MAIN_WINDOW_PREFIX;
+
 struct UnsafeWindowHandle(*mut std::ffi::c_void);
 
 unsafe impl Send for UnsafeWindowHandle {}
@@ -11,7 +13,26 @@ unsafe impl Sync for UnsafeWindowHandle {}
 
 const WINDOW_CONTROL_PAD_X: f64 = 13.0;
 const WINDOW_CONTROL_PAD_Y: f64 = 16.0;
-const MAIN_WINDOW_PREFIX: &str = "main_";
+
+// Generates a delegate callback that only forwards to the super delegate.
+macro_rules! forward_to_super {
+    ($name:ident, $sel:ident) => {
+        extern "C" fn $name(this: &Object, _cmd: Sel, arg: id) {
+            unsafe {
+                let super_del: id = *this.get_ivar("super_delegate");
+                let _: () = msg_send![super_del, $sel: arg];
+            }
+        }
+    };
+    ($name:ident, $sel:ident -> BOOL) => {
+        extern "C" fn $name(this: &Object, _cmd: Sel, arg: id) -> BOOL {
+            unsafe {
+                let super_del: id = *this.get_ivar("super_delegate");
+                msg_send![super_del, $sel: arg]
+            }
+        }
+    };
+}
 
 // Height of the frontend header bar; keep in sync with the
 // --window-menu-height CSS variable in src-web/src/styles/global.css.
@@ -60,7 +81,8 @@ fn set_traffic_light_glyphs_hidden(
     hidden: bool,
 ) {
     unsafe {
-        let owner_view = owner as *const objc::runtime::Object as cocoa::base::id;
+        let owner_view =
+            owner as *const objc::runtime::Object as cocoa::base::id;
         let container: cocoa::base::id = msg_send![owner_view, superview];
         if container == cocoa::base::nil {
             return;
@@ -175,7 +197,8 @@ fn position_traffic_lights(
             msg_send![title_bar_container_view, setFrame: title_bar_rect];
 
         let is_key_window: BOOL = msg_send![ns_window, isKeyWindow];
-        let close_rgb = if is_key_window == YES { CLOSE_RED } else { DIMMED_GREY };
+        let close_rgb =
+            if is_key_window == YES { CLOSE_RED } else { DIMMED_GREY };
 
         let window_buttons = vec![close, miniaturize, zoom];
         let space_between = TRAFFIC_LIGHT_SPACING;
@@ -216,7 +239,8 @@ fn position_traffic_lights(
                 let _: () = msg_send![circle, setWantsLayer: true];
                 if i == 0 {
                     let _: () = msg_send![circle, setTarget: ns_window];
-                    let _: () = msg_send![circle, setAction: sel!(performClose:)];
+                    let _: () =
+                        msg_send![circle, setAction: sel!(performClose:)];
 
                     // "x" glyph revealed on cluster hover. The decorative
                     // minimize/maximize circles are disabled, so like native
@@ -266,9 +290,9 @@ fn position_traffic_lights(
                     let _: () = msg_send![circle_layer, addSublayer: glyph];
                     (*(circle as *mut objc::runtime::Object))
                         .set_ivar::<*mut std::ffi::c_void>(
-                            "glyph_layer",
-                            glyph as *mut std::ffi::c_void,
-                        );
+                        "glyph_layer",
+                        glyph as *mut std::ffi::c_void,
+                    );
                 } else {
                     // Decorative only: never clickable.
                     let _: () = msg_send![circle, setEnabled: false];
@@ -286,8 +310,7 @@ fn position_traffic_lights(
                             TRAFFIC_LIGHT_DIAMETER,
                         ),
                     );
-                    let tracking: id =
-                        msg_send![class!(NSTrackingArea), alloc];
+                    let tracking: id = msg_send![class!(NSTrackingArea), alloc];
                     let opts: cocoa::foundation::NSUInteger = 0x01 // MouseEnteredAndExited
                         | 0x40; // ActiveAlways
                     let tracking: id = msg_send![
@@ -363,6 +386,25 @@ pub fn setup_traffic_light_positioner<R: Runtime>(window: &WebviewWindow<R>) {
         func(ptr);
     }
 
+    // Re-run positioning so the traffic lights keep their placement and
+    // pick up the colors for the window's current key state.
+    fn reposition_from_state<R: Runtime>(this: &Object) {
+        with_window_state(this, |state: &mut WindowState<R>| {
+            let id = state
+                .window
+                .ns_window()
+                .expect("NS window should exist on state to reposition")
+                as cocoa::base::id;
+
+            position_traffic_lights(
+                UnsafeWindowHandle(id as *mut std::ffi::c_void),
+                WINDOW_CONTROL_PAD_X,
+                WINDOW_CONTROL_PAD_Y,
+                state.window.label().to_string(),
+            );
+        });
+    }
+
     #[allow(unexpected_cfgs)]
     unsafe {
         let ns_win = window
@@ -372,67 +414,35 @@ pub fn setup_traffic_light_positioner<R: Runtime>(window: &WebviewWindow<R>) {
 
         let current_delegate: id = ns_win.delegate();
 
-        extern "C" fn on_window_should_close(
-            this: &Object,
-            _cmd: Sel,
-            sender: id,
-        ) -> BOOL {
-            unsafe {
-                let super_del: id = *this.get_ivar("super_delegate");
-                msg_send![super_del, windowShouldClose: sender]
-            }
-        }
-        extern "C" fn on_window_will_close(
-            this: &Object,
-            _cmd: Sel,
-            notification: id,
-        ) {
-            unsafe {
-                let super_del: id = *this.get_ivar("super_delegate");
-                let _: () = msg_send![super_del, windowWillClose: notification];
-            }
-        }
+        forward_to_super!(on_window_should_close, windowShouldClose -> BOOL);
+        forward_to_super!(on_window_will_close, windowWillClose);
+        forward_to_super!(on_window_did_move, windowDidMove);
+        forward_to_super!(
+            on_window_did_change_backing_properties,
+            windowDidChangeBackingProperties
+        );
+        forward_to_super!(on_dragging_entered, draggingEntered -> BOOL);
+        forward_to_super!(
+            on_prepare_for_drag_operation,
+            prepareForDragOperation -> BOOL
+        );
+        forward_to_super!(
+            on_perform_drag_operation,
+            performDragOperation -> BOOL
+        );
+        forward_to_super!(on_conclude_drag_operation, concludeDragOperation);
+        forward_to_super!(on_dragging_exited, draggingExited);
+
         extern "C" fn on_window_did_resize<R: Runtime>(
             this: &Object,
             _cmd: Sel,
             notification: id,
         ) {
             unsafe {
-                with_window_state(&*this, |state: &mut WindowState<R>| {
-                    let id = state.window.ns_window().expect(
-                        "NS window should exist on state to handle resize",
-                    ) as id;
-
-                    position_traffic_lights(
-                        UnsafeWindowHandle(id as *mut c_void),
-                        WINDOW_CONTROL_PAD_X,
-                        WINDOW_CONTROL_PAD_Y,
-                        state.window.label().to_string(),
-                    );
-                });
+                reposition_from_state::<R>(this);
 
                 let super_del: id = *this.get_ivar("super_delegate");
                 let _: () = msg_send![super_del, windowDidResize: notification];
-            }
-        }
-        extern "C" fn on_window_did_move(
-            this: &Object,
-            _cmd: Sel,
-            notification: id,
-        ) {
-            unsafe {
-                let super_del: id = *this.get_ivar("super_delegate");
-                let _: () = msg_send![super_del, windowDidMove: notification];
-            }
-        }
-        extern "C" fn on_window_did_change_backing_properties(
-            this: &Object,
-            _cmd: Sel,
-            notification: id,
-        ) {
-            unsafe {
-                let super_del: id = *this.get_ivar("super_delegate");
-                let _: () = msg_send![super_del, windowDidChangeBackingProperties: notification];
             }
         }
         extern "C" fn on_window_did_become_key<R: Runtime>(
@@ -441,20 +451,7 @@ pub fn setup_traffic_light_positioner<R: Runtime>(window: &WebviewWindow<R>) {
             notification: id,
         ) {
             unsafe {
-                // Re-run positioning so the custom traffic lights pick up
-                // their focused colors.
-                with_window_state(&*this, |state: &mut WindowState<R>| {
-                    let id = state.window.ns_window().expect(
-                        "NS window should exist on state to handle focus",
-                    ) as id;
-
-                    position_traffic_lights(
-                        UnsafeWindowHandle(id as *mut c_void),
-                        WINDOW_CONTROL_PAD_X,
-                        WINDOW_CONTROL_PAD_Y,
-                        state.window.label().to_string(),
-                    );
-                });
+                reposition_from_state::<R>(this);
 
                 let super_del: id = *this.get_ivar("super_delegate");
                 let _: () =
@@ -467,75 +464,11 @@ pub fn setup_traffic_light_positioner<R: Runtime>(window: &WebviewWindow<R>) {
             notification: id,
         ) {
             unsafe {
-                // Re-run positioning so the custom traffic lights pick up
-                // their unfocused (all grey) colors.
-                with_window_state(&*this, |state: &mut WindowState<R>| {
-                    let id = state.window.ns_window().expect(
-                        "NS window should exist on state to handle focus",
-                    ) as id;
-
-                    position_traffic_lights(
-                        UnsafeWindowHandle(id as *mut c_void),
-                        WINDOW_CONTROL_PAD_X,
-                        WINDOW_CONTROL_PAD_Y,
-                        state.window.label().to_string(),
-                    );
-                });
+                reposition_from_state::<R>(this);
 
                 let super_del: id = *this.get_ivar("super_delegate");
                 let _: () =
                     msg_send![super_del, windowDidResignKey: notification];
-            }
-        }
-        extern "C" fn on_dragging_entered(
-            this: &Object,
-            _cmd: Sel,
-            notification: id,
-        ) -> BOOL {
-            unsafe {
-                let super_del: id = *this.get_ivar("super_delegate");
-                msg_send![super_del, draggingEntered: notification]
-            }
-        }
-        extern "C" fn on_prepare_for_drag_operation(
-            this: &Object,
-            _cmd: Sel,
-            notification: id,
-        ) -> BOOL {
-            unsafe {
-                let super_del: id = *this.get_ivar("super_delegate");
-                msg_send![super_del, prepareForDragOperation: notification]
-            }
-        }
-        extern "C" fn on_perform_drag_operation(
-            this: &Object,
-            _cmd: Sel,
-            sender: id,
-        ) -> BOOL {
-            unsafe {
-                let super_del: id = *this.get_ivar("super_delegate");
-                msg_send![super_del, performDragOperation: sender]
-            }
-        }
-        extern "C" fn on_conclude_drag_operation(
-            this: &Object,
-            _cmd: Sel,
-            notification: id,
-        ) {
-            unsafe {
-                let super_del: id = *this.get_ivar("super_delegate");
-                let _: () =
-                    msg_send![super_del, concludeDragOperation: notification];
-            }
-        }
-        extern "C" fn on_dragging_exited(
-            this: &Object,
-            _cmd: Sel,
-            notification: id,
-        ) {
-            unsafe {
-                let super_del: id = *this.get_ivar("super_delegate");
-                let _: () = msg_send![super_del, draggingExited: notification];
             }
         }
         extern "C" fn on_window_will_use_full_screen_presentation_options(
@@ -594,17 +527,8 @@ pub fn setup_traffic_light_positioner<R: Runtime>(window: &WebviewWindow<R>) {
                         .window
                         .emit("did-exit-fullscreen", ())
                         .expect("Failed to emit event");
-
-                    let id =
-                        state.window.ns_window().expect("Failed to emit event")
-                            as id;
-                    position_traffic_lights(
-                        UnsafeWindowHandle(id as *mut c_void),
-                        WINDOW_CONTROL_PAD_X,
-                        WINDOW_CONTROL_PAD_Y,
-                        state.window.label().to_string(),
-                    );
                 });
+                reposition_from_state::<R>(this);
 
                 let super_del: id = *this.get_ivar("super_delegate");
                 let _: () =
@@ -628,46 +552,24 @@ pub fn setup_traffic_light_positioner<R: Runtime>(window: &WebviewWindow<R>) {
                 let _: () = msg_send![super_del, windowWillExitFullScreen: notification];
             }
         }
-        extern "C" fn on_window_did_fail_to_enter_full_screen(
-            this: &Object,
-            _cmd: Sel,
-            window: id,
-        ) {
-            unsafe {
-                let super_del: id = *this.get_ivar("super_delegate");
-                let _: () = msg_send![super_del, windowDidFailToEnterFullScreen: window];
-            }
-        }
-        extern "C" fn on_effective_appearance_did_change(
-            this: &Object,
-            _cmd: Sel,
-            notification: id,
-        ) {
-            unsafe {
-                let super_del: id = *this.get_ivar("super_delegate");
-                let _: () = msg_send![super_del, effectiveAppearanceDidChange: notification];
-            }
-        }
-        extern "C" fn on_effective_appearance_did_changed_on_main_thread(
-            this: &Object,
-            _cmd: Sel,
-            notification: id,
-        ) {
-            unsafe {
-                let super_del: id = *this.get_ivar("super_delegate");
-                let _: () = msg_send![
-                    super_del,
-                    effectiveAppearanceDidChangedOnMainThread: notification
-                ];
-            }
-        }
+        forward_to_super!(
+            on_window_did_fail_to_enter_full_screen,
+            windowDidFailToEnterFullScreen
+        );
+        forward_to_super!(
+            on_effective_appearance_did_change,
+            effectiveAppearanceDidChange
+        );
+        forward_to_super!(
+            on_effective_appearance_did_changed_on_main_thread,
+            effectiveAppearanceDidChangedOnMainThread
+        );
 
-        // Are we de-allocing this properly? (I miss safe Rust :(  )
+        // Note: the boxed window state is intentionally leaked — the
+        // delegate (and its app_box ivar) lives for the window's lifetime.
         let window_label = window.label().to_string();
 
-        let app_state = WindowState {
-            window: window.clone(),
-        };
+        let app_state = WindowState { window: window.clone() };
         let app_box = Box::into_raw(Box::new(app_state)) as *mut c_void;
         let random_str: String = rand::rng()
             .sample_iter(&Alphanumeric)
