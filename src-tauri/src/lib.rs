@@ -114,6 +114,51 @@ async fn cmd_open_link_window(
     Ok(())
 }
 
+// Shows a transient toast over the calling window. The toast lives in
+// a small non-focusable panel window; like the other panels, it is
+// created on first use and kept around hidden afterwards.
+#[tauri::command]
+async fn cmd_show_toast(
+    window: WebviewWindow,
+    message: String,
+) -> Result<(), String> {
+    let label = window::toast_window_label(window.label());
+    if let Some(w) = window.app_handle().webview_windows().get(&label) {
+        let _ = w.emit_to(label.as_str(), "toast:show", message);
+        return Ok(());
+    }
+
+    // The first message travels percent-encoded in the query string;
+    // the webview is not ready to receive events yet.
+    let mut url = tauri::Url::parse("tauri://localhost/toast")
+        .expect("Toast panel base URL should parse");
+    url.query_pairs_mut()
+        .append_pair("parent", window.label())
+        .append_pair("message", &message);
+    let url = format!("{}?{}", url.path(), url.query().unwrap_or_default());
+
+    window::create_toast_window(&window, &url);
+    Ok(())
+}
+
+// Called by the toast webview once it has sized the window to fit the
+// message; anchors the toast over its parent, reveals it, and hides it
+// again after a delay.
+#[tauri::command]
+async fn cmd_present_toast(
+    window: WebviewWindow,
+    parent: String,
+) -> Result<(), String> {
+    let Some(parent_window) =
+        window.app_handle().webview_windows().get(&parent).cloned()
+    else {
+        return Err(format!("Unknown toast parent window: {parent}"));
+    };
+
+    window::present_toast_window(&parent_window, &window).await;
+    Ok(())
+}
+
 // Pops up a native formatting menu for the editor toolbar; the chosen
 // action comes back to the window as a `format-menu:action` event.
 #[tauri::command]
@@ -258,6 +303,7 @@ pub fn run() {
                 TrayIconBuilder::new().icon(image).build(app_handle).unwrap();
             app_handle.manage(AppState::default());
             app_handle.manage(window::PanelState::default());
+            app_handle.manage(window::ToastState::default());
 
             Ok(())
         });
@@ -269,6 +315,8 @@ pub fn run() {
             cmd_open_link_window,
             cmd_open_search_window,
             cmd_popup_format_menu,
+            cmd_show_toast,
+            cmd_present_toast,
             cmd_list_notes,
             cmd_get_note,
             cmd_upsert_note,

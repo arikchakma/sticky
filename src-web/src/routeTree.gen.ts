@@ -9,12 +9,18 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ToastRouteImport } from './routes/toast'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as NewRouteImport } from './routes/new'
 import { Route as LinkRouteImport } from './routes/link'
 import { Route as NoteIdRouteImport } from './routes/$noteId'
 import { Route as IndexRouteImport } from './routes/index'
 
+const ToastRoute = ToastRouteImport.update({
+  id: '/toast',
+  path: '/toast',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SearchRoute = SearchRouteImport.update({
   id: '/search',
   path: '/search',
@@ -47,6 +53,7 @@ export interface FileRoutesByFullPath {
   '/link': typeof LinkRoute
   '/new': typeof NewRoute
   '/search': typeof SearchRoute
+  '/toast': typeof ToastRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -54,6 +61,7 @@ export interface FileRoutesByTo {
   '/link': typeof LinkRoute
   '/new': typeof NewRoute
   '/search': typeof SearchRoute
+  '/toast': typeof ToastRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -62,13 +70,14 @@ export interface FileRoutesById {
   '/link': typeof LinkRoute
   '/new': typeof NewRoute
   '/search': typeof SearchRoute
+  '/toast': typeof ToastRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/$noteId' | '/link' | '/new' | '/search'
+  fullPaths: '/' | '/$noteId' | '/link' | '/new' | '/search' | '/toast'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/$noteId' | '/link' | '/new' | '/search'
-  id: '__root__' | '/' | '/$noteId' | '/link' | '/new' | '/search'
+  to: '/' | '/$noteId' | '/link' | '/new' | '/search' | '/toast'
+  id: '__root__' | '/' | '/$noteId' | '/link' | '/new' | '/search' | '/toast'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -77,10 +86,18 @@ export interface RootRouteChildren {
   LinkRoute: typeof LinkRoute
   NewRoute: typeof NewRoute
   SearchRoute: typeof SearchRoute
+  ToastRoute: typeof ToastRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/toast': {
+      id: '/toast'
+      path: '/toast'
+      fullPath: '/toast'
+      preLoaderRoute: typeof ToastRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/search': {
       id: '/search'
       path: '/search'
@@ -125,6 +142,7 @@ const rootRouteChildren: RootRouteChildren = {
   LinkRoute: LinkRoute,
   NewRoute: NewRoute,
   SearchRoute: SearchRoute,
+  ToastRoute: ToastRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

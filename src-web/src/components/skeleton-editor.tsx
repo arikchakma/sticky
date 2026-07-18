@@ -19,7 +19,6 @@ import {
 } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { toast } from 'sonner';
 import { Divider } from '~/components/divider';
 import { Header, HEADER_ID } from '~/components/header';
 import { MenuBar } from '~/components/menu-bar/menu-bar';
@@ -271,7 +270,9 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
   const handleNewWindow = useCallback(async () => {
     const isEmpty = editor?.isEmpty ?? false;
     if (isEmpty) {
-      toast.warning('You already have an empty note');
+      await invoke('cmd_show_toast', {
+        message: 'You already have an empty note',
+      });
       return;
     }
 

@@ -20,7 +20,6 @@ import {
   useRef,
   useState,
 } from 'react';
-import { toast } from 'sonner';
 import {
   SearchNoteItem,
   type SearchNote,
@@ -137,7 +136,9 @@ function SearchPage() {
         context?.previousNotes
       );
 
-      toast.error(err?.message || 'Failed to delete note');
+      invoke('cmd_show_toast', {
+        message: err?.message || 'Failed to delete note',
+      });
     },
   });
 
