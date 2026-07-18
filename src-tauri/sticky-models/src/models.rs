@@ -44,10 +44,7 @@ impl<'s> TryFrom<&Row<'s>> for Note {
 
 impl Note {
     pub fn new(content: String) -> Self {
-        Self {
-            content,
-            ..Default::default()
-        }
+        Self { content, ..Default::default() }
     }
 }
 
