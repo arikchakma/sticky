@@ -101,7 +101,6 @@ fn run_migration(
         .expect("Failed to read migration file");
     info!("Applying migration {description}");
 
-    // Split on `;`? → optional depending on how your SQL is structured
     tx.execute_batch(&sql)?;
 
     let execution_time = start.elapsed().as_nanos() as i64;

@@ -20,7 +20,10 @@ impl SqliteConnection {
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     tauri::plugin::Builder::new("sticky_models")
         .setup(|app_handle, _api| {
-            let app_path = app_handle.path().app_data_dir().unwrap();
+            let app_path = app_handle
+                .path()
+                .app_data_dir()
+                .expect("App data directory should be resolvable");
             create_dir_all(app_path.clone())
                 .expect("Problem creating App directory!");
 
@@ -28,10 +31,10 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
 
             let manager = SqliteConnectionManager::file(db_file_path);
             let pool = Pool::builder()
-                .max_size(100) // Up from 10 (just in case)
-                .connection_timeout(Duration::from_secs(10)) // Down from 30
+                .max_size(100)
+                .connection_timeout(Duration::from_secs(10))
                 .build(manager)
-                .unwrap();
+                .expect("Failed to create SQLite connection pool");
 
             if let Err(e) = migrate_db(&pool) {
                 error!("Failed to run database migration {e:?}");

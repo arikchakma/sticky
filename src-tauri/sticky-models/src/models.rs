@@ -77,12 +77,15 @@ impl<'de> Deserialize<'de> for AnyModel {
         D: Deserializer<'de>,
     {
         let value = Value::deserialize(deserializer)?;
-        let model = value.as_object().unwrap();
+        let model = value
+            .as_object()
+            .ok_or_else(|| serde::de::Error::custom("expected an object"))?;
 
         let model = match model.get("model") {
-            Some(m) if m == "note" => {
-                AnyModel::Note(serde_json::from_value(value).unwrap())
-            }
+            Some(m) if m == "note" => AnyModel::Note(
+                serde_json::from_value(value)
+                    .map_err(serde::de::Error::custom)?,
+            ),
             Some(m) => {
                 return Err(serde::de::Error::custom(format!(
                     "Unknown model {}",
