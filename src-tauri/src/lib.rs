@@ -63,10 +63,7 @@ async fn cmd_open_search_window(
     if let Some(w) = window.app_handle().webview_windows().get(&label) {
         if w.is_visible().unwrap_or(false) {
             let _ = w.hide();
-        } else if !window::search_panel_recently_hidden(
-            window.app_handle(),
-            &label,
-        ) {
+        } else if !window::panel_recently_hidden(window.app_handle(), &label) {
             let _ = w.emit_to(label.as_str(), "search:reset", active_note_id);
             window::present_search_window(&window, w);
         }
@@ -80,6 +77,61 @@ async fn cmd_open_search_window(
 
     window::create_search_window(&window, &url);
     Ok(())
+}
+
+// Toggles the floating link editor popped up under the toolbar's link
+// button; `anchor` is the button's bottom-center in logical coordinates
+// relative to the calling window's top-left corner. Like the search
+// panel, it is created on first use and kept around hidden afterwards.
+#[tauri::command]
+async fn cmd_open_link_window(
+    window: WebviewWindow,
+    current_url: Option<String>,
+    anchor: (f64, f64),
+) -> Result<(), String> {
+    let label = window::link_window_label(window.label());
+    if let Some(w) = window.app_handle().webview_windows().get(&label) {
+        if w.is_visible().unwrap_or(false) {
+            let _ = w.hide();
+        } else if !window::panel_recently_hidden(window.app_handle(), &label) {
+            let _ = w.emit_to(label.as_str(), "link:reset", current_url);
+            window::present_link_window(&window, w, anchor);
+        }
+        return Ok(());
+    }
+
+    // The href can contain any character, so the initial value travels
+    // to the panel percent-encoded in the query string.
+    let mut url = tauri::Url::parse("tauri://localhost/link")
+        .expect("Link panel base URL should parse");
+    url.query_pairs_mut().append_pair("parent", window.label());
+    if let Some(href) = &current_url {
+        url.query_pairs_mut().append_pair("url", href);
+    }
+    let url = format!("{}?{}", url.path(), url.query().unwrap_or_default());
+
+    window::create_link_window(&window, &url, anchor);
+    Ok(())
+}
+
+// Pops up a native formatting menu for the editor toolbar; the chosen
+// action comes back to the window as a `format-menu:action` event.
+#[tauri::command]
+async fn cmd_popup_format_menu(
+    window: tauri::Window,
+    menu: String,
+    active: Vec<String>,
+    position: (f64, f64),
+) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    return window_menu::popup_format_menu(&window, &menu, &active, position)
+        .map_err(|e| e.to_string());
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (window, menu, active, position);
+        Ok(())
+    }
 }
 
 #[tauri::command]
@@ -205,7 +257,7 @@ pub fn run() {
             let _ =
                 TrayIconBuilder::new().icon(image).build(app_handle).unwrap();
             app_handle.manage(AppState::default());
-            app_handle.manage(window::SearchPanelState::default());
+            app_handle.manage(window::PanelState::default());
 
             Ok(())
         });
@@ -214,7 +266,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             cmd_new_child_window,
             cmd_new_main_window,
+            cmd_open_link_window,
             cmd_open_search_window,
+            cmd_popup_format_menu,
             cmd_list_notes,
             cmd_get_note,
             cmd_upsert_note,

@@ -192,8 +192,8 @@ fn traffic_light_button_class() -> &'static objc::runtime::Class {
     unsafe { &*(*cls as *const objc::runtime::Class) }
 }
 
-// The search panel keeps the overlay titlebar for its native rounded
-// corners and shadow, but shows no window controls at all.
+// Utility panels keep the overlay titlebar for their native rounded
+// corners and shadow, but show no window controls at all.
 pub fn hide_window_controls<R: Runtime>(window: &WebviewWindow<R>) {
     use cocoa::appkit::{NSWindow, NSWindowButton};
     use cocoa::base::id;
@@ -248,6 +248,43 @@ pub fn anchor_panel_to_parent<R: Runtime>(
                 + (parent_frame.size.width - panel_frame.size.width) / 2.0,
             parent_frame.origin.y + parent_frame.size.height
                 - top_offset
+                - panel_frame.size.height,
+        );
+        let _: () = msg_send![panel_window, setFrameOrigin: origin];
+    }
+}
+
+// Anchors a panel with its top-left corner offset (x, y) points from
+// the parent window's top-left corner. Positioned through the NSWindow
+// frames directly; see anchor_panel_to_parent.
+pub fn anchor_panel_at<R: Runtime>(
+    panel: &WebviewWindow<R>,
+    parent: &WebviewWindow<R>,
+    x: f64,
+    y: f64,
+) {
+    use cocoa::appkit::NSWindow;
+    use cocoa::base::id;
+    use cocoa::foundation::{NSPoint, NSRect};
+
+    let panel_window =
+        panel.ns_window().expect("NS window should exist to anchor panel")
+            as id;
+    let parent_window = parent
+        .ns_window()
+        .expect("Parent NS window should exist to anchor panel")
+        as id;
+
+    #[allow(unexpected_cfgs)]
+    unsafe {
+        let parent_frame: NSRect = NSWindow::frame(parent_window);
+        let panel_frame: NSRect = NSWindow::frame(panel_window);
+
+        // Cocoa frames use a bottom-left origin with y growing upwards.
+        let origin = NSPoint::new(
+            parent_frame.origin.x + x,
+            parent_frame.origin.y + parent_frame.size.height
+                - y
                 - panel_frame.size.height,
         );
         let _: () = msg_send![panel_window, setFrameOrigin: origin];

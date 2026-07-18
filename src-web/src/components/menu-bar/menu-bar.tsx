@@ -1,7 +1,6 @@
 import { useEditorState, type Editor } from '@tiptap/react';
 import { TypeIcon, XCircleIcon } from 'lucide-react';
 import { forwardRef, useState } from 'react';
-import { cn } from '~/lib/classname';
 import { Button } from '../ui/button';
 import { MenuBarItems } from './menu-bar-items';
 
@@ -30,12 +29,7 @@ export const MenuBar = forwardRef<HTMLDivElement, MenuBarProps>(
         ref={ref}
         className="h-9.5 z-99 relative flex shrink-0 items-center p-1"
       >
-        <div
-          className={cn(
-            'flex grow items-center justify-center',
-            showMenuBarItems && 'justify-start'
-          )}
-        >
+        <div className="flex grow items-center justify-center">
           {showMenuBarItems && <MenuBarItems editor={editor} />}
           {!showMenuBarItems && (
             <button

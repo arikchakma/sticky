@@ -1,21 +1,20 @@
+import { invoke } from '@tauri-apps/api/core';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { Editor, useEditorState } from '@tiptap/react';
 import {
-  BoldIcon,
+  ChevronDownIcon,
   CodeIcon,
   FileCode2Icon,
-  Heading1Icon,
+  HeadingIcon,
   ItalicIcon,
   LinkIcon,
   ListIcon,
-  ListOrderedIcon,
-  ListTodoIcon,
-  StrikethroughIcon,
   TextQuoteIcon,
-  UnderlineIcon,
 } from 'lucide-react';
+import { useEffect } from 'react';
 import { Button } from '../ui/button';
-import { HeadingSelector } from './heading-selector';
-import { LinkSelectorPopover } from './link-selector-popover';
+
+type FormatMenu = 'heading' | 'style' | 'list';
 
 type MenuBarItemsProps = {
   editor: Editor;
@@ -48,147 +47,181 @@ export function MenuBarItems(props: MenuBarItemsProps) {
     }),
   });
 
-  const isHeadingActive =
-    stats.isHeading1 || stats.isHeading2 || stats.isHeading3;
+  // Selections made in the native formatting menus popped up below; the
+  // ids match the ones in src-tauri's window_menu.rs.
+  useEffect(() => {
+    const actions: Record<string, () => boolean> = {
+      'heading-1': () =>
+        editor.chain().focus().toggleHeading({ level: 1 }).run(),
+      'heading-2': () =>
+        editor.chain().focus().toggleHeading({ level: 2 }).run(),
+      'heading-3': () =>
+        editor.chain().focus().toggleHeading({ level: 3 }).run(),
+      bold: () => editor.chain().focus().toggleBold().run(),
+      italic: () => editor.chain().focus().toggleItalic().run(),
+      underline: () => editor.chain().focus().toggleUnderline().run(),
+      strike: () => editor.chain().focus().toggleStrike().run(),
+      'ordered-list': () => editor.chain().focus().toggleOrderedList().run(),
+      'bullet-list': () => editor.chain().focus().toggleBulletList().run(),
+      'task-list': () => editor.chain().focus().toggleTaskList().run(),
+    };
 
-  const items = [
-    {
-      type: 'heading',
-      icon: Heading1Icon,
-      title: 'Heading 1',
-      action: () => editor.chain().focus().toggleHeading({ level: 1 }).run(),
-      isActive: isHeadingActive,
-    },
-    {
-      type: 'bold',
-      icon: BoldIcon,
-      title: 'Bold',
-      action: () => editor.chain().focus().toggleBold().run(),
-      isActive: stats.isBold,
-    },
-    {
-      type: 'italic',
-      icon: ItalicIcon,
-      title: 'Italic',
-      action: () => editor.chain().focus().toggleItalic().run(),
-      isActive: stats.isItalic,
-    },
-    {
-      type: 'strike',
-      icon: StrikethroughIcon,
-      title: 'Strike',
-      action: () => editor.chain().focus().toggleStrike().run(),
-      isActive: stats.isStrike,
-    },
-    {
-      type: 'underline',
-      icon: UnderlineIcon,
-      title: 'Underline',
-      action: () => editor.chain().focus().toggleUnderline().run(),
-      isActive: stats.isUnderline,
-    },
-    {
-      type: 'code',
-      icon: CodeIcon,
-      title: 'Code',
-      action: () => editor.chain().focus().toggleCode().run(),
-      isActive: stats.isCode,
-    },
-    {
-      type: 'link',
-      icon: LinkIcon,
-      title: 'Link',
-      action: () => editor.chain().focus().toggleLink().run(),
-      isActive: stats.isLink,
-    },
-    {
-      type: 'codeBlock',
-      icon: FileCode2Icon,
-      title: 'Code Block',
-      action: () => editor.chain().focus().toggleCodeBlock().run(),
-      isActive: stats.isCodeBlock,
-    },
-    {
-      type: 'blockquote',
-      icon: TextQuoteIcon,
-      title: 'Blockquote',
-      action: () => editor.chain().focus().toggleBlockquote().run(),
-      isActive: stats.isQuote,
-    },
-    {
-      type: 'bulletList',
-      icon: ListIcon,
-      title: 'Bullet List',
-      action: () => editor.chain().focus().toggleBulletList().run(),
-      isActive: stats.isBulletList,
-    },
-    {
-      type: 'orderedList',
-      icon: ListOrderedIcon,
-      title: 'Ordered List',
-      action: () => editor.chain().focus().toggleOrderedList().run(),
-      isActive: stats.isOrderedList,
-    },
-    {
-      type: 'taskList',
-      icon: ListTodoIcon,
-      title: 'Task List',
-      action: () => editor.chain().focus().toggleTaskList().run(),
-      isActive: stats.isTaskList,
-    },
-  ];
+    const currentWindow = getCurrentWindow();
+    const unlistenFormat = currentWindow.listen<string>(
+      'format-menu:action',
+      (event) => {
+        actions[event.payload]?.();
+      }
+    );
+
+    // Sent by the native link panel (see the /link route).
+    const unlistenLinkSet = currentWindow.listen<string>(
+      'link:set',
+      (event) => {
+        editor.chain().focus().toggleLink({ href: event.payload }).run();
+      }
+    );
+
+    const unlistenLinkRemove = currentWindow.listen('link:remove', () => {
+      editor.chain().focus().unsetLink().run();
+    });
+
+    return () => {
+      unlistenFormat.then((fn) => fn());
+      unlistenLinkSet.then((fn) => fn());
+      unlistenLinkRemove.then((fn) => fn());
+    };
+  }, [editor]);
+
+  const popupMenu = (
+    e: React.MouseEvent<HTMLButtonElement>,
+    menu: FormatMenu,
+    active: string[]
+  ) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    invoke('cmd_popup_format_menu', {
+      menu,
+      active,
+      position: [rect.left, rect.bottom + 6],
+    });
+  };
+
+  const activeHeading = stats.isHeading1
+    ? 'heading-1'
+    : stats.isHeading2
+      ? 'heading-2'
+      : stats.isHeading3
+        ? 'heading-3'
+        : null;
+
+  const activeStyles = [
+    stats.isBold && 'bold',
+    stats.isItalic && 'italic',
+    stats.isUnderline && 'underline',
+    stats.isStrike && 'strike',
+  ].filter((style): style is string => Boolean(style));
+
+  const activeList = stats.isOrderedList
+    ? 'ordered-list'
+    : stats.isBulletList
+      ? 'bullet-list'
+      : stats.isTaskList
+        ? 'task-list'
+        : null;
 
   return (
     <div className="flex items-center gap-0.5">
-      {items.map((item) => {
-        if (item.type === 'link') {
-          return (
-            <LinkSelectorPopover
-              key={item.title}
-              defaultValue={stats?.linkHref ?? ''}
-              isActive={item.isActive}
-              onSelect={(url) => {
-                editor.chain().focus().toggleLink({ href: url }).run();
-              }}
-              onRemove={() => editor.chain().focus().unsetLink().run()}
-            />
-          );
+      <Button
+        variant="ghost"
+        size="icon"
+        title="Heading"
+        data-active={activeHeading !== null}
+        className="h-7 w-auto gap-0 px-1 text-zinc-500 hover:text-zinc-500 data-[active=true]:text-black"
+        onClick={(e) =>
+          popupMenu(e, 'heading', activeHeading ? [activeHeading] : [])
         }
+      >
+        <HeadingIcon className="h-4 w-4" />
+        <ChevronDownIcon className="h-3 w-3" />
+      </Button>
 
-        if (item.type === 'heading') {
-          const currentLevel = stats.isHeading1
-            ? 1
-            : stats.isHeading2
-              ? 2
-              : stats.isHeading3
-                ? 3
-                : null;
+      <Button
+        variant="ghost"
+        size="icon"
+        title="Text Style"
+        data-active={activeStyles.length > 0}
+        className="h-7 w-auto gap-0 px-1 text-zinc-500 hover:text-zinc-500 data-[active=true]:text-black"
+        onClick={(e) => popupMenu(e, 'style', activeStyles)}
+      >
+        <ItalicIcon className="h-4 w-4" />
+        <ChevronDownIcon className="h-3 w-3" />
+      </Button>
 
-          return (
-            <HeadingSelector
-              key={item.title}
-              isActive={item.isActive}
-              currentLevel={currentLevel}
-              onSelect={(level) =>
-                editor.chain().focus().toggleHeading({ level }).run()
-              }
-            />
-          );
-        }
+      <Button
+        variant="ghost"
+        size="icon"
+        title="Link"
+        data-active={stats.isLink}
+        className="size-7 text-zinc-500 hover:text-zinc-500 data-[active=true]:text-black"
+        onClick={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          invoke('cmd_open_link_window', {
+            currentUrl: stats.linkHref ?? null,
+            anchor: [rect.left + rect.width / 2, rect.bottom + 6],
+          });
+        }}
+      >
+        <LinkIcon className="h-4 w-4" />
+      </Button>
 
-        return (
-          <Button
-            variant="ghost"
-            size="icon"
-            key={item.title}
-            onClick={item.action}
-            data-active={item.isActive}
-            className="size-7 text-zinc-500 hover:text-zinc-500 data-[active=true]:text-black"
-          >
-            <item.icon className="h-4 w-4" />
-          </Button>
-        );
-      })}
+      <Button
+        variant="ghost"
+        size="icon"
+        title="Code"
+        data-active={stats.isCode}
+        className="size-7 text-zinc-500 hover:text-zinc-500 data-[active=true]:text-black"
+        onClick={() => editor.chain().focus().toggleCode().run()}
+      >
+        <CodeIcon className="h-4 w-4" />
+      </Button>
+
+      <span className="mx-1 h-4 w-px shrink-0 bg-zinc-200" />
+
+      <Button
+        variant="ghost"
+        size="icon"
+        title="Code Block"
+        data-active={stats.isCodeBlock}
+        className="size-7 text-zinc-500 hover:text-zinc-500 data-[active=true]:text-black"
+        onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+      >
+        <FileCode2Icon className="h-4 w-4" />
+      </Button>
+
+      <Button
+        variant="ghost"
+        size="icon"
+        title="Blockquote"
+        data-active={stats.isQuote}
+        className="size-7 text-zinc-500 hover:text-zinc-500 data-[active=true]:text-black"
+        onClick={() => editor.chain().focus().toggleBlockquote().run()}
+      >
+        <TextQuoteIcon className="h-4 w-4" />
+      </Button>
+
+      <span className="mx-1 h-4 w-px shrink-0 bg-zinc-200" />
+
+      <Button
+        variant="ghost"
+        size="icon"
+        title="List"
+        data-active={activeList !== null}
+        className="h-7 w-auto gap-0 px-1 text-zinc-500 hover:text-zinc-500 data-[active=true]:text-black"
+        onClick={(e) => popupMenu(e, 'list', activeList ? [activeList] : [])}
+      >
+        <ListIcon className="h-4 w-4" />
+        <ChevronDownIcon className="h-3 w-3" />
+      </Button>
     </div>
   );
 }

@@ -3,7 +3,8 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use tauri::{
-    AppHandle, Manager, Runtime, WebviewUrl, WebviewWindow, WindowEvent,
+    AppHandle, Emitter, Manager, Runtime, WebviewUrl, WebviewWindow,
+    WindowEvent,
 };
 use tokio::sync::mpsc;
 
@@ -31,30 +32,63 @@ pub const SEARCH_WINDOW_HEIGHT: f64 = 430.0;
 pub const SEARCH_WINDOW_INSET: f64 = 16.0;
 pub const SEARCH_WINDOW_TOP_OFFSET: f64 = 50.0;
 
-// Clicking the toggle button while the panel is open blurs the panel
+pub const LINK_WINDOW_WIDTH: f64 = 256.0;
+pub const LINK_WINDOW_HEIGHT: f64 = 44.0;
+
+// Clicking the toggle button while a panel is open blurs the panel
 // first (hiding it) and only then delivers the click, which would
 // instantly re-present it. Reopens within this grace period of a
 // blur-hide are treated as that same click and ignored.
-pub const SEARCH_TOGGLE_GRACE: Duration = Duration::from_millis(300);
+pub const PANEL_TOGGLE_GRACE: Duration = Duration::from_millis(300);
 
-// When each search panel was last hidden because it lost focus,
+// When each utility panel was last hidden because it lost focus,
 // keyed by the panel's label.
 #[derive(Default)]
-pub struct SearchPanelState(pub Mutex<HashMap<String, Instant>>);
+pub struct PanelState(pub Mutex<HashMap<String, Instant>>);
 
-pub fn search_panel_recently_hidden<R: Runtime>(
+pub fn panel_recently_hidden<R: Runtime>(
     app_handle: &AppHandle<R>,
     label: &str,
 ) -> bool {
-    let state = app_handle.state::<SearchPanelState>();
-    let hidden_at = state.0.lock().expect("Search panel state poisoned");
-    hidden_at.get(label).is_some_and(|at| at.elapsed() < SEARCH_TOGGLE_GRACE)
+    let state = app_handle.state::<PanelState>();
+    let hidden_at = state.0.lock().expect("Panel state poisoned");
+    hidden_at.get(label).is_some_and(|at| at.elapsed() < PANEL_TOGGLE_GRACE)
 }
 
-fn mark_search_panel_hidden<R: Runtime>(window: &WebviewWindow<R>) {
-    let state = window.app_handle().state::<SearchPanelState>();
-    let mut hidden_at = state.0.lock().expect("Search panel state poisoned");
+fn mark_panel_hidden<R: Runtime>(window: &WebviewWindow<R>) {
+    let state = window.app_handle().state::<PanelState>();
+    let mut hidden_at = state.0.lock().expect("Panel state poisoned");
     hidden_at.insert(window.label().to_string(), Instant::now());
+}
+
+// Utility panels are created once and then kept around so reopening
+// them is instant: losing focus only hides them, and they die with
+// their parent window.
+fn attach_panel_lifecycle(
+    parent_window: &WebviewWindow,
+    panel: &WebviewWindow,
+) {
+    {
+        let panel = panel.clone();
+        panel.clone().on_window_event(move |e| match e {
+            WindowEvent::Focused(false) => {
+                if panel.hide().is_ok() {
+                    mark_panel_hidden(&panel);
+                }
+            }
+            _ => {}
+        });
+    }
+
+    {
+        let panel = panel.clone();
+        parent_window.on_window_event(move |e| match e {
+            WindowEvent::CloseRequested { .. } | WindowEvent::Destroyed => {
+                let _ = panel.close();
+            }
+            _ => {}
+        });
+    }
 }
 
 #[derive(Default, Debug)]
@@ -203,6 +237,14 @@ pub(crate) fn create_window<R: Runtime>(
             }
 
             let event_id = event.id().0.as_str();
+
+            // Selections from the native formatting menus popped up by
+            // `window_menu::popup_format_menu`; the editor applies them.
+            if let Some(action) = event_id.strip_prefix("format:") {
+                let _ = w.emit_to(w.label(), "format-menu:action", action);
+                return;
+            }
+
             match event_id {
                 "hacked_quit" => {
                     // Cmd+Q on macOS doesn't trigger `CloseRequested` so we use a custom Quit menu
@@ -326,29 +368,7 @@ pub fn create_search_window(
             .expect("Failed to set up the search panel on the main thread");
     }
 
-    // The panel is created once and then kept around so reopening it is
-    // instant: dismissing only hides it, and it dies with its parent.
-    {
-        let search_window = search_window.clone();
-        search_window.clone().on_window_event(move |e| match e {
-            WindowEvent::Focused(false) => {
-                if search_window.hide().is_ok() {
-                    mark_search_panel_hidden(&search_window);
-                }
-            }
-            _ => {}
-        });
-    }
-
-    {
-        let panel = search_window.clone();
-        parent_window.on_window_event(move |e| match e {
-            WindowEvent::CloseRequested { .. } | WindowEvent::Destroyed => {
-                let _ = panel.close();
-            }
-            _ => {}
-        });
-    }
+    attach_panel_lifecycle(parent_window, &search_window);
 
     search_window
 }
@@ -381,6 +401,99 @@ pub fn present_search_window(
         let _ = parent_window;
         let _ = search_window.show();
         let _ = search_window.set_focus();
+    }
+}
+
+pub fn link_window_label(parent_label: &str) -> String {
+    format!("{OTHER_WINDOW_PREFIX}link_{parent_label}")
+}
+
+// A floating link editor popped up under the toolbar's link button,
+// behaving like the native format menus: always on top, no window
+// controls, and dismissed as soon as it loses focus. `anchor` is the
+// button's bottom-center in logical coordinates relative to the parent
+// window's top-left corner; the panel is centered on it.
+pub fn create_link_window(
+    parent_window: &WebviewWindow,
+    url: &str,
+    anchor: (f64, f64),
+) -> WebviewWindow {
+    let app_handle = parent_window.app_handle();
+    let label = link_window_label(parent_window.label());
+
+    let config = CreateWindowConfig {
+        url,
+        label: label.as_str(),
+        title: "Edit Link",
+        inner_size: Some((LINK_WINDOW_WIDTH, LINK_WINDOW_HEIGHT)),
+        hide_titlebar: true,
+        always_on_top: true,
+        fixed_size: true,
+        start_hidden: true,
+        ..Default::default()
+    };
+
+    let link_window = create_window(&app_handle, config);
+
+    #[cfg(target_os = "macos")]
+    {
+        // AppKit is main-thread-only; see create_window. The panel stays
+        // invisible after anchoring: the frontend shows it once mounted,
+        // so it never flashes at the wrong position.
+        let panel = link_window.clone();
+        let parent = parent_window.clone();
+        link_window
+            .clone()
+            .run_on_main_thread(move || {
+                crate::mac_window::hide_window_controls(&panel);
+                crate::mac_window::anchor_panel_at(
+                    &panel,
+                    &parent,
+                    anchor.0 - LINK_WINDOW_WIDTH / 2.0,
+                    anchor.1,
+                );
+            })
+            .expect("Failed to set up the link panel on the main thread");
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    let _ = anchor;
+
+    attach_panel_lifecycle(parent_window, &link_window);
+
+    link_window
+}
+
+// Re-anchors an existing (hidden) link panel under the toolbar's link
+// button and brings it back up, focused.
+pub fn present_link_window(
+    parent_window: &WebviewWindow,
+    link_window: &WebviewWindow,
+    anchor: (f64, f64),
+) {
+    #[cfg(target_os = "macos")]
+    {
+        let panel = link_window.clone();
+        let parent = parent_window.clone();
+        link_window
+            .run_on_main_thread(move || {
+                crate::mac_window::anchor_panel_at(
+                    &panel,
+                    &parent,
+                    anchor.0 - LINK_WINDOW_WIDTH / 2.0,
+                    anchor.1,
+                );
+                let _ = panel.show();
+                let _ = panel.set_focus();
+            })
+            .expect("Failed to present the link panel on the main thread");
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (parent_window, anchor);
+        let _ = link_window.show();
+        let _ = link_window.set_focus();
     }
 }
 

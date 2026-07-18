@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as NewRouteImport } from './routes/new'
+import { Route as LinkRouteImport } from './routes/link'
 import { Route as NoteIdRouteImport } from './routes/$noteId'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -22,6 +23,11 @@ const SearchRoute = SearchRouteImport.update({
 const NewRoute = NewRouteImport.update({
   id: '/new',
   path: '/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LinkRoute = LinkRouteImport.update({
+  id: '/link',
+  path: '/link',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NoteIdRoute = NoteIdRouteImport.update({
@@ -38,12 +44,14 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$noteId': typeof NoteIdRoute
+  '/link': typeof LinkRoute
   '/new': typeof NewRoute
   '/search': typeof SearchRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$noteId': typeof NoteIdRoute
+  '/link': typeof LinkRoute
   '/new': typeof NewRoute
   '/search': typeof SearchRoute
 }
@@ -51,20 +59,22 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/$noteId': typeof NoteIdRoute
+  '/link': typeof LinkRoute
   '/new': typeof NewRoute
   '/search': typeof SearchRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/$noteId' | '/new' | '/search'
+  fullPaths: '/' | '/$noteId' | '/link' | '/new' | '/search'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/$noteId' | '/new' | '/search'
-  id: '__root__' | '/' | '/$noteId' | '/new' | '/search'
+  to: '/' | '/$noteId' | '/link' | '/new' | '/search'
+  id: '__root__' | '/' | '/$noteId' | '/link' | '/new' | '/search'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   NoteIdRoute: typeof NoteIdRoute
+  LinkRoute: typeof LinkRoute
   NewRoute: typeof NewRoute
   SearchRoute: typeof SearchRoute
 }
@@ -83,6 +93,13 @@ declare module '@tanstack/react-router' {
       path: '/new'
       fullPath: '/new'
       preLoaderRoute: typeof NewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/link': {
+      id: '/link'
+      path: '/link'
+      fullPath: '/link'
+      preLoaderRoute: typeof LinkRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/$noteId': {
@@ -105,6 +122,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   NoteIdRoute: NoteIdRoute,
+  LinkRoute: LinkRoute,
   NewRoute: NewRoute,
   SearchRoute: SearchRoute,
 }

@@ -1,9 +1,67 @@
 use tauri::menu::{
-    AboutMetadata, Menu, MenuItemBuilder, PredefinedMenuItem, Submenu,
-    WINDOW_SUBMENU_ID,
+    AboutMetadata, CheckMenuItem, ContextMenu, Menu, MenuItemBuilder,
+    PredefinedMenuItem, Submenu, WINDOW_SUBMENU_ID,
 };
 pub use tauri::AppHandle;
-use tauri::Runtime;
+use tauri::{LogicalPosition, Manager, Runtime, Window};
+
+// The formatting menus the editor toolbar can pop up. The accelerators
+// are display hints only: they mirror the editor's own keybindings,
+// which handle the actual keystrokes.
+fn format_menu_items(
+    menu: &str,
+) -> Option<&'static [(&'static str, &'static str, &'static str)]> {
+    Some(match menu {
+        "heading" => &[
+            ("heading-1", "Heading 1", "Cmd+Alt+1"),
+            ("heading-2", "Heading 2", "Cmd+Alt+2"),
+            ("heading-3", "Heading 3", "Cmd+Alt+3"),
+        ],
+        "style" => &[
+            ("bold", "Bold", "Cmd+B"),
+            ("italic", "Italic", "Cmd+I"),
+            ("underline", "Underline", "Cmd+U"),
+            ("strike", "Strikethrough", "Cmd+Shift+S"),
+        ],
+        "list" => &[
+            ("ordered-list", "Ordered List", "Cmd+Shift+7"),
+            ("bullet-list", "Bullet List", "Cmd+Shift+8"),
+            ("task-list", "Task List", "Cmd+Shift+9"),
+        ],
+        _ => return None,
+    })
+}
+
+// Pops up a native menu at `position`, logical coordinates relative to
+// the window's top-left corner. The selection comes back with a
+// `format:{id}` menu event, which the handler in `window::create_window`
+// forwards to the window as a `format-menu:action` event.
+pub fn popup_format_menu<R: Runtime>(
+    window: &Window<R>,
+    menu: &str,
+    active: &[String],
+    position: (f64, f64),
+) -> tauri::Result<()> {
+    let Some(items) = format_menu_items(menu) else {
+        return Ok(());
+    };
+
+    let app_handle = window.app_handle();
+    let popup = Menu::new(app_handle)?;
+    for (id, text, accelerator) in items {
+        let checked = active.iter().any(|a| a == id);
+        popup.append(&CheckMenuItem::with_id(
+            app_handle,
+            format!("format:{id}"),
+            text,
+            true,
+            checked,
+            Some(accelerator),
+        )?)?;
+    }
+
+    popup.popup_at(window.clone(), LogicalPosition::new(position.0, position.1))
+}
 
 pub fn app_menu<R: Runtime>(
     app_handle: &AppHandle<R>,
