@@ -3,3 +3,4 @@
 export const MIN_WINDOW_WIDTH = 400;
 export const MIN_WINDOW_HEIGHT = 115;
 export const SEARCH_WINDOW_HEIGHT = 430;
+export const COMMAND_WINDOW_HEIGHT = 480;

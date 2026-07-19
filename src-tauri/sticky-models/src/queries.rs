@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use crate::error::Result;
 use crate::models::{ModelType, Note};
 use crate::store::NotesStore;
@@ -33,6 +35,19 @@ pub async fn delete_note<R: Runtime>(
     id: &str,
 ) -> Result<()> {
     app_handle.state::<NotesStore>().delete(id)
+}
+
+/// The path of the file backing the note `id`.
+pub async fn note_path<R: Runtime>(
+    app_handle: &AppHandle<R>,
+    id: &str,
+) -> Result<PathBuf> {
+    app_handle.state::<NotesStore>().path(id)
+}
+
+/// The directory holding the note files.
+pub async fn notes_dir<R: Runtime>(app_handle: &AppHandle<R>) -> PathBuf {
+    app_handle.state::<NotesStore>().dir().to_path_buf()
 }
 
 /// Generate a fresh id with the model's prefix, like `note_C7dKUnuR`.

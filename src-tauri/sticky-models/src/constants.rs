@@ -22,6 +22,9 @@ shared_constants! {
     /// Maximum height of the floating search panel; the frontend
     /// shrinks the window to fit its content.
     pub const SEARCH_WINDOW_HEIGHT: f64 = 430.0;
+    /// Maximum height of the floating command palette; the frontend
+    /// shrinks the window to fit its content.
+    pub const COMMAND_WINDOW_HEIGHT: f64 = 480.0;
 }
 
 #[cfg(test)]

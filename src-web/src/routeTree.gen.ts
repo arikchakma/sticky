@@ -13,6 +13,7 @@ import { Route as ToastRouteImport } from './routes/toast'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as NewRouteImport } from './routes/new'
 import { Route as LinkRouteImport } from './routes/link'
+import { Route as CommandsRouteImport } from './routes/commands'
 import { Route as NoteIdRouteImport } from './routes/$noteId'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -36,6 +37,11 @@ const LinkRoute = LinkRouteImport.update({
   path: '/link',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CommandsRoute = CommandsRouteImport.update({
+  id: '/commands',
+  path: '/commands',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const NoteIdRoute = NoteIdRouteImport.update({
   id: '/$noteId',
   path: '/$noteId',
@@ -50,6 +56,7 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$noteId': typeof NoteIdRoute
+  '/commands': typeof CommandsRoute
   '/link': typeof LinkRoute
   '/new': typeof NewRoute
   '/search': typeof SearchRoute
@@ -58,6 +65,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$noteId': typeof NoteIdRoute
+  '/commands': typeof CommandsRoute
   '/link': typeof LinkRoute
   '/new': typeof NewRoute
   '/search': typeof SearchRoute
@@ -67,6 +75,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/$noteId': typeof NoteIdRoute
+  '/commands': typeof CommandsRoute
   '/link': typeof LinkRoute
   '/new': typeof NewRoute
   '/search': typeof SearchRoute
@@ -74,15 +83,31 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/$noteId' | '/link' | '/new' | '/search' | '/toast'
+  fullPaths:
+    | '/'
+    | '/$noteId'
+    | '/commands'
+    | '/link'
+    | '/new'
+    | '/search'
+    | '/toast'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/$noteId' | '/link' | '/new' | '/search' | '/toast'
-  id: '__root__' | '/' | '/$noteId' | '/link' | '/new' | '/search' | '/toast'
+  to: '/' | '/$noteId' | '/commands' | '/link' | '/new' | '/search' | '/toast'
+  id:
+    | '__root__'
+    | '/'
+    | '/$noteId'
+    | '/commands'
+    | '/link'
+    | '/new'
+    | '/search'
+    | '/toast'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   NoteIdRoute: typeof NoteIdRoute
+  CommandsRoute: typeof CommandsRoute
   LinkRoute: typeof LinkRoute
   NewRoute: typeof NewRoute
   SearchRoute: typeof SearchRoute
@@ -119,6 +144,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LinkRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/commands': {
+      id: '/commands'
+      path: '/commands'
+      fullPath: '/commands'
+      preLoaderRoute: typeof CommandsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/$noteId': {
       id: '/$noteId'
       path: '/$noteId'
@@ -139,6 +171,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   NoteIdRoute: NoteIdRoute,
+  CommandsRoute: CommandsRoute,
   LinkRoute: LinkRoute,
   NewRoute: NewRoute,
   SearchRoute: SearchRoute,

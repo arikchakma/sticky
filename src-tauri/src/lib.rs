@@ -7,7 +7,9 @@ use flexi_logger::{
 use log::{error, warn, Level, Record};
 use sticky_models::error::Error;
 use sticky_models::models::Note;
-use sticky_models::queries::{delete_note, get_note, list_notes, upsert_note};
+use sticky_models::queries::{
+    delete_note, get_note, list_notes, note_path, notes_dir, upsert_note,
+};
 use sticky_models::watcher::NOTES_CHANGED;
 use tauri::webview::PageLoadEvent;
 use tauri::{
@@ -142,6 +144,74 @@ async fn cmd_open_search_window(
 
     window::create_search_window(&window, &url);
     Ok(())
+}
+
+// Toggles the floating command palette anchored to the calling window.
+// Like the search panel, it is created on first use (or pre-warmed) and
+// kept around hidden afterwards. `note_id` and `auto_size` describe the
+// calling window's state; the palette derives its action list from them.
+#[tauri::command]
+async fn cmd_open_command_window(
+    window: WebviewWindow,
+    note_id: Option<String>,
+    auto_size: bool,
+) -> Result<(), String> {
+    let label = window::command_window_label(window.label());
+    if let Some(w) = window.app_handle().webview_windows().get(&label) {
+        if w.is_visible().unwrap_or(false) {
+            let _ = w.hide();
+        } else if !window::panel_recently_hidden(window.app_handle(), &label) {
+            let context = serde_json::json!({
+                "noteId": note_id,
+                "autoSize": auto_size,
+            });
+            let _ = w.emit_to(label.as_str(), "command:reset", context);
+            window::present_command_window(&window, w);
+        }
+        return Ok(());
+    }
+
+    // First open without a pre-warmed panel: the context travels in the
+    // query string; the webview is not ready to receive events yet.
+    let mut url =
+        format!("/commands?parent={}&autoSize={auto_size}", window.label());
+    if let Some(id) = note_id {
+        url.push_str(&format!("&noteId={id}"));
+    }
+
+    window::create_command_window(&window, &url);
+    Ok(())
+}
+
+// Reveals the note's markdown file in Finder.
+#[tauri::command]
+async fn cmd_reveal_note<R: Runtime>(
+    note_id: String,
+    app_handle: AppHandle<R>,
+) -> Result<(), String> {
+    let path =
+        note_path(&app_handle, &note_id).await.map_err(|e| e.to_string())?;
+    tauri_plugin_opener::reveal_item_in_dir(path).map_err(|e| e.to_string())
+}
+
+// The absolute path of the note's markdown file.
+#[tauri::command]
+async fn cmd_note_path<R: Runtime>(
+    note_id: String,
+    app_handle: AppHandle<R>,
+) -> Result<String, String> {
+    let path =
+        note_path(&app_handle, &note_id).await.map_err(|e| e.to_string())?;
+    Ok(path.to_string_lossy().into_owned())
+}
+
+// Opens the folder holding the note files in Finder.
+#[tauri::command]
+async fn cmd_open_notes_dir<R: Runtime>(
+    app_handle: AppHandle<R>,
+) -> Result<(), String> {
+    let dir = notes_dir(&app_handle).await;
+    tauri_plugin_opener::open_path(dir, None::<&str>).map_err(|e| e.to_string())
 }
 
 // Toggles the floating link editor popped up under the toolbar's link
@@ -361,7 +431,8 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(sticky_models::plugin::init())
         // A note window that has finished loading is about to need its
-        // search panel; build it ahead of the first toggle.
+        // search panel and command palette; build them ahead of the
+        // first toggle.
         .on_page_load(|webview, payload| {
             if !matches!(payload.event(), PageLoadEvent::Finished)
                 || !webview.label().starts_with(MAIN_WINDOW_PREFIX)
@@ -373,6 +444,7 @@ pub fn run() {
                 webview.app_handle().get_webview_window(webview.label())
             {
                 window::prewarm_search_window(&window);
+                window::prewarm_command_window(&window);
             }
         })
         .setup(|app_handle: &mut App| {
@@ -402,8 +474,12 @@ pub fn run() {
             cmd_new_child_window,
             cmd_new_main_window,
             cmd_snap_window_to_corner,
+            cmd_open_command_window,
             cmd_open_link_window,
+            cmd_open_notes_dir,
             cmd_open_search_window,
+            cmd_reveal_note,
+            cmd_note_path,
             cmd_popup_format_menu,
             cmd_show_toast,
             cmd_present_toast,

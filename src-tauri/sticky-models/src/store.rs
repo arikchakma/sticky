@@ -94,6 +94,20 @@ impl NotesStore {
         Ok(note)
     }
 
+    /// The file backing the note `id`.
+    pub fn path(&self, id: &str) -> Result<PathBuf> {
+        match self.lookup(id).filter(|p| p.is_file()) {
+            Some(path) => Ok(path),
+            None => {
+                // The file may have moved under us; rescan.
+                self.scan()?;
+                self.lookup(id)
+                    .filter(|p| p.is_file())
+                    .ok_or_else(|| Error::ModelNotFound(id.to_string()))
+            }
+        }
+    }
+
     /// Write a note to disk, creating it when the id is new or empty.
     ///
     /// Returns the persisted note with backend-owned id and timestamps.
