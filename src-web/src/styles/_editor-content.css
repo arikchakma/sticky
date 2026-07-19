@@ -52,6 +52,14 @@
 
   ul:not([data-type='taskList']) {
     @apply ps-6.5 mb-2 list-disc;
+
+    ul:not([data-type='taskList']) {
+      @apply list-[circle];
+
+      ul:not([data-type='taskList']) {
+        @apply list-[square];
+      }
+    }
   }
 
   ol {
@@ -60,9 +68,19 @@
     li::marker {
       @apply tracking-tighter;
     }
+
+    ol {
+      @apply list-[lower-alpha];
+
+      ol {
+        @apply list-[lower-roman];
+      }
+    }
   }
 
-  li:not(:has(input[type='checkbox'])) {
+  /* Task items render via a node view that carries no data-type attribute,
+     so they are matched by their own (direct-child) checkbox instead. */
+  li:not(:has(> label > input[type='checkbox'])) {
     @apply mb-1 marker:text-red-500;
 
     p {
@@ -70,10 +88,26 @@
     }
   }
 
+  /* Sublists sit flush with their parent item; the top-level list
+     keeps the mb-2 that separates it from the following block. */
+  li {
+    ul,
+    ol {
+      @apply mb-0 mt-1;
+    }
+  }
+
   ul[data-type='taskList'] {
     @apply mb-2 ml-0.5;
 
-    li:has(input[type='checkbox']) {
+    /* The parent item's content div already starts past its checkbox,
+       so a nested list needs no padding of its own: each level steps
+       in by exactly one checkbox width. */
+    ul[data-type='taskList'] {
+      @apply mb-0 ml-0 mt-1.5 ps-0;
+    }
+
+    li:has(> label > input[type='checkbox']) {
       @apply mb-2 flex items-start;
 
       label {
@@ -102,7 +136,8 @@
         }
       }
 
-      &:has(input[type='checkbox']:checked) div p {
+      /* Only strike the item's own text, not nested task items. */
+      &:has(> label > input[type='checkbox']:checked) > div > p {
         @apply line-through opacity-50;
       }
 

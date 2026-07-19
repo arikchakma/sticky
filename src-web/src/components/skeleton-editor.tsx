@@ -8,17 +8,13 @@ import {
   PhysicalSize,
   type Monitor,
 } from '@tauri-apps/api/window';
-import { CharacterCount } from '@tiptap/extension-character-count';
-import { ListKit } from '@tiptap/extension-list';
-import { Placeholder } from '@tiptap/extensions/placeholder';
 import {
   EditorContent,
   Editor as TiptapEditor,
   useEditor,
   type JSONContent,
 } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { Divider } from '~/components/divider';
 import { Header } from '~/components/header';
 import { MenuBar } from '~/components/menu-bar/menu-bar';
@@ -27,7 +23,7 @@ import { useOnFocusChanged } from '~/hooks/use-on-focus-changed';
 import { useOnWindowResize } from '~/hooks/use-on-window-resize';
 import { getIsManuallyResized, setIsManuallyResized } from '~/lib/autosize';
 import defaultNoteContent from '~/lib/default-note-content.json';
-import { CodeBlock } from '~/lib/highlighter';
+import { editorExtensions } from '~/lib/editor-extensions';
 import { clamp } from '~/lib/number';
 import { listNotesOptions } from '~/queries/notes';
 
@@ -44,36 +40,6 @@ type SkeletonEditorProps = {
 
 export function SkeletonEditor(props: SkeletonEditorProps) {
   const { noteId: currentNoteId, content: defaultContent } = props;
-
-  const extensions = useMemo(
-    () => [
-      StarterKit.configure({
-        heading: {
-          levels: [1, 2, 3],
-        },
-        listItem: false,
-        bulletList: false,
-        orderedList: false,
-        listKeymap: false,
-        codeBlock: false,
-        trailingNode: false,
-      }),
-      ListKit,
-      CharacterCount,
-      Placeholder.configure({
-        placeholder: (props) => {
-          const { editor } = props;
-          if (editor.isEmpty) {
-            return 'Start typing...';
-          }
-
-          return 'Write something...';
-        },
-      }),
-      CodeBlock,
-    ],
-    []
-  );
 
   const navigate = useNavigate();
 
@@ -209,7 +175,7 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
 
   const isDirtyRef = useRef<boolean>(false);
   const editor = useEditor({
-    extensions,
+    extensions: editorExtensions,
     content: defaultContent ?? '',
     autofocus: 'end',
     editorProps: {
