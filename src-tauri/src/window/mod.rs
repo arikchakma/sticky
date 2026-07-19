@@ -1,13 +1,11 @@
 //! Note windows and the utility panels floated over them.
 
-mod header;
 mod link;
 mod main;
 mod panel;
 mod search;
 mod toast;
 
-pub use header::{register_header_click, HeaderClickState};
 pub use link::{create_link_window, link_window_label, present_link_window};
 pub use main::{create_child_window, create_main_window};
 pub use panel::{panel_recently_hidden, PanelState};

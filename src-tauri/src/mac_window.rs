@@ -1,5 +1,7 @@
 #![allow(deprecated)]
 
+use std::sync::atomic::{AtomicI64, Ordering};
+
 use objc::{class, msg_send, sel, sel_impl};
 use tauri::{Emitter, Runtime, WebviewWindow};
 
@@ -192,10 +194,104 @@ fn traffic_light_button_class() -> &'static objc::runtime::Class {
     unsafe { &*(*cls as *const objc::runtime::Class) }
 }
 
-// The user's configured double-click speed, in seconds. Main thread
-// only.
-pub fn double_click_interval() -> f64 {
-    unsafe { msg_send![class!(NSEvent), doubleClickInterval] }
+static LAST_CLICK_COUNT: AtomicI64 = AtomicI64::new(0);
+
+// AppKit's click count for the most recent left mousedown, recorded by
+// the monitor installed below.
+pub fn last_click_count() -> i64 {
+    LAST_CLICK_COUNT.load(Ordering::Relaxed)
+}
+
+// Records the click count of every left mousedown before it is
+// dispatched. WebKit's own counter (e.detail) resets once the native
+// drag session started by a press on a drag region swallows the
+// mouseup, so double clicks there are read from this instead — with
+// the system's double-click interval and movement rules for free.
+// Main thread only; call once at startup.
+pub fn install_click_count_monitor() {
+    use block::ConcreteBlock;
+    use cocoa::base::id;
+
+    const LEFT_MOUSE_DOWN_MASK: u64 = 1 << 1;
+
+    let block = ConcreteBlock::new(|event: id| -> id {
+        let count: i64 = unsafe { msg_send![event, clickCount] };
+        LAST_CLICK_COUNT.store(count, Ordering::Relaxed);
+        event
+    });
+    // The monitor lives for the app's lifetime, backed by the leaked
+    // block.
+    let block = Box::leak(Box::new(block.copy()));
+
+    unsafe {
+        let _: id = msg_send![
+            class!(NSEvent),
+            addLocalMonitorForEventsMatchingMask: LEFT_MOUSE_DOWN_MASK
+            handler: &**block
+        ];
+    }
+}
+
+// Animates the window to `height` points, keeping its top-left corner
+// in place. Main thread only.
+pub fn animate_window_height<R: Runtime>(
+    window: &WebviewWindow<R>,
+    height: f64,
+) {
+    use cocoa::appkit::NSWindow;
+    use cocoa::base::{id, YES};
+    use cocoa::foundation::NSRect;
+
+    let ns_window = window
+        .ns_window()
+        .expect("NS window should exist to animate the window height")
+        as id;
+
+    #[allow(unexpected_cfgs)]
+    unsafe {
+        let mut frame: NSRect = NSWindow::frame(ns_window);
+        // Cocoa frames use a bottom-left origin with y growing upwards.
+        frame.origin.y += frame.size.height - height;
+        frame.size.height = height;
+        let _: () =
+            msg_send![ns_window, setFrame: frame display: YES animate: YES];
+    }
+}
+
+// Distance kept between the window and its screen's top-right corner
+// when it is snapped there.
+const SNAP_MARGIN_RIGHT: f64 = 40.0;
+const SNAP_MARGIN_TOP: f64 = 100.0;
+
+// Animates the window into the top-right corner of its screen. Main
+// thread only.
+pub fn snap_window_to_top_right<R: Runtime>(window: &WebviewWindow<R>) {
+    use cocoa::appkit::NSWindow;
+    use cocoa::base::{id, nil, YES};
+    use cocoa::foundation::NSRect;
+
+    let ns_window =
+        window.ns_window().expect("NS window should exist to snap the window")
+            as id;
+
+    #[allow(unexpected_cfgs)]
+    unsafe {
+        let screen: id = msg_send![ns_window, screen];
+        if screen == nil {
+            return;
+        }
+        let screen_frame: NSRect = msg_send![screen, frame];
+
+        let mut frame: NSRect = NSWindow::frame(ns_window);
+        frame.origin.x = screen_frame.origin.x + screen_frame.size.width
+            - frame.size.width
+            - SNAP_MARGIN_RIGHT;
+        frame.origin.y = screen_frame.origin.y + screen_frame.size.height
+            - SNAP_MARGIN_TOP
+            - frame.size.height;
+        let _: () =
+            msg_send![ns_window, setFrame: frame display: YES animate: YES];
+    }
 }
 
 // Utility panels keep the overlay titlebar for their native rounded

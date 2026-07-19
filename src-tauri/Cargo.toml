@@ -36,6 +36,7 @@ log = "0.4.27"
 sticky-models = { workspace = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
+block = "0.1.6"
 cocoa = "0.26.0"
 hex_color = "3.0.0"
 objc = "0.2.7"

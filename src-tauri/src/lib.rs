@@ -52,23 +52,66 @@ async fn cmd_new_main_window(
 }
 
 // A mousedown on a note's header either starts the native window drag
-// or, when it follows another press closely enough, reports a double
-// click for the frontend to act on. WebKit's own click counter
-// (e.detail) is unreliable here because the native drag session
-// started by the first press swallows the mouseup; `position` is the
-// cursor in screen coordinates.
+// or reports a double click for the frontend to act on. WebKit's own
+// click counter (e.detail) is unreliable here because the native drag
+// session started by the first press swallows the mouseup; AppKit's
+// counter is read instead.
 #[tauri::command]
-async fn cmd_header_mouse_down(
-    window: WebviewWindow,
-    position: (f64, f64),
-) -> Result<bool, String> {
-    let state = window.app_handle().state::<window::HeaderClickState>();
-    if window::register_header_click(&state, window.label(), position) {
+async fn cmd_header_mouse_down(window: WebviewWindow) -> Result<bool, String> {
+    #[cfg(target_os = "macos")]
+    if mac_window::last_click_count() == 2 {
         return Ok(true);
     }
 
     window.start_dragging().map_err(|e| e.to_string())?;
     Ok(false)
+}
+
+// Animates the window to the given logical height, keeping its
+// top-left corner in place. Used by the header double click, where an
+// instant jump looks jarring.
+#[tauri::command]
+async fn cmd_animate_window_height(
+    window: WebviewWindow,
+    height: f64,
+) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        let w = window.clone();
+        window
+            .run_on_main_thread(move || {
+                mac_window::animate_window_height(&w, height)
+            })
+            .map_err(|e| e.to_string())?;
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    let _ = (window, height);
+
+    Ok(())
+}
+
+// Animates the window into the top-right corner of its screen. A
+// second header double click, once the window already fits its
+// content, tucks it away there.
+#[tauri::command]
+async fn cmd_snap_window_to_corner(
+    window: WebviewWindow,
+) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        let w = window.clone();
+        window
+            .run_on_main_thread(move || {
+                mac_window::snap_window_to_top_right(&w)
+            })
+            .map_err(|e| e.to_string())?;
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    let _ = window;
+
+    Ok(())
 }
 
 // Toggles the floating search panel anchored to the calling window. The
@@ -316,6 +359,7 @@ pub fn run() {
             {
                 app_handle
                     .set_activation_policy(tauri::ActivationPolicy::Accessory);
+                mac_window::install_click_count_monitor();
             }
 
             let image = include_image!("./icons/tray/32x32.png");
@@ -324,16 +368,17 @@ pub fn run() {
             app_handle.manage(AppState::default());
             app_handle.manage(window::PanelState::default());
             app_handle.manage(window::ToastState::default());
-            app_handle.manage(window::HeaderClickState::new());
 
             Ok(())
         });
 
     builder
         .invoke_handler(tauri::generate_handler![
+            cmd_animate_window_height,
             cmd_header_mouse_down,
             cmd_new_child_window,
             cmd_new_main_window,
+            cmd_snap_window_to_corner,
             cmd_open_link_window,
             cmd_open_search_window,
             cmd_popup_format_menu,
