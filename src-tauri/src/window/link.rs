@@ -35,6 +35,7 @@ pub fn create_link_window(
         always_on_top: true,
         fixed_size: true,
         start_hidden: true,
+        no_minimize: true,
         ..Default::default()
     };
 

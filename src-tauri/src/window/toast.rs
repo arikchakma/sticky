@@ -41,6 +41,7 @@ pub fn create_toast_window(
         fixed_size: true,
         start_hidden: true,
         no_auto_focus: true,
+        no_minimize: true,
         ..Default::default()
     };
 

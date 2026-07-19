@@ -61,6 +61,9 @@ pub(crate) struct CreateWindowConfig<'s> {
     /// Skips the automatic focus on creation, for display-only panels
     /// that are never given focus afterwards either.
     pub no_auto_focus: bool,
+    /// Rejects minimizing, for utility panels: their controls are
+    /// hidden, but Cmd+M would still miniaturize them into the Dock.
+    pub no_minimize: bool,
 }
 
 /// Creates a window according to `config`, wiring up the app menu, the
@@ -102,6 +105,10 @@ pub(crate) fn create_window<R: Runtime>(
 
     if config.no_auto_focus {
         win_builder = win_builder.focused(false);
+    }
+
+    if config.no_minimize {
+        win_builder = win_builder.minimizable(false);
     }
 
     if let Some((w, h)) = config.inner_size {

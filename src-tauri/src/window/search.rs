@@ -48,6 +48,7 @@ pub fn create_search_window(
         // taking it on creation would blur the note window even when
         // the panel is only built ahead of time.
         no_auto_focus: true,
+        no_minimize: true,
         ..Default::default()
     };
 
