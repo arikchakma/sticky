@@ -9,7 +9,7 @@ export const HEADER_ID = 'main-header';
 type HeaderProps = {
   onNewWindow: () => void;
   onBrowse: () => void;
-  onDoubleClick: (e: React.MouseEvent<HTMLDivElement>) => void;
+  onDoubleClick: () => void;
 };
 
 export const Header = forwardRef<
@@ -31,23 +31,26 @@ export const Header = forwardRef<
         className="flex h-full items-center justify-between pr-1"
         onMouseDown={async (e) => {
           e.stopPropagation();
+          // Keeps focus in the editor even when the press lands on
+          // one of the header's buttons.
           e.preventDefault();
-          // if the button is not the left mouse button, return
-          // because we only want to handle left mouse button double click
-          if (e.buttons !== 1) {
+
+          // Presses on the buttons are theirs alone: they neither
+          // drag the window nor count towards a double click. Only
+          // left presses on the bare header surface do.
+          if (e.buttons !== 1 || e.target !== e.currentTarget) {
             return;
           }
 
           // WebKit's click count (e.detail) resets once the first
           // press's native drag session swallows the mouseup, so the
-          // double click is detected on the native side instead. A
-          // single press starts the window drag.
+          // native side reads AppKit's counter instead. A single press
+          // starts the window drag.
           const isDoubleClick = await invoke<boolean>(
-            'cmd_header_mouse_down',
-            { position: [e.screenX, e.screenY] }
+            'cmd_header_mouse_down'
           );
           if (isDoubleClick) {
-            onDoubleClick(e);
+            onDoubleClick();
           }
         }}
         id={HEADER_ID}

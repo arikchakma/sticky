@@ -5,8 +5,8 @@ import { invoke } from '@tauri-apps/api/core';
 import {
   currentMonitor,
   getCurrentWindow,
-  PhysicalPosition,
   PhysicalSize,
+  type Monitor,
 } from '@tauri-apps/api/window';
 import { CharacterCount } from '@tiptap/extension-character-count';
 import { ListKit } from '@tiptap/extension-list';
@@ -20,7 +20,7 @@ import {
 import StarterKit from '@tiptap/starter-kit';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Divider } from '~/components/divider';
-import { Header, HEADER_ID } from '~/components/header';
+import { Header } from '~/components/header';
 import { MenuBar } from '~/components/menu-bar/menu-bar';
 import { useInterval } from '~/hooks/use-interval';
 import { useOnFocusChanged } from '~/hooks/use-on-focus-changed';
@@ -29,10 +29,11 @@ import { getIsManuallyResized, setIsManuallyResized } from '~/lib/autosize';
 import defaultNoteContent from '~/lib/default-note-content.json';
 import { CodeBlock } from '~/lib/highlighter';
 import { clamp } from '~/lib/number';
-import { getTransactionType } from '~/lib/transaction';
 import { listNotesOptions } from '~/queries/notes';
 
 const EDITOR_CONTENT_ID = 'editor-content';
+// Keep in sync with MIN_WINDOW_HEIGHT and DEFAULT_WINDOW_WIDTH in
+// src-tauri/src/window/.
 const DEFAULT_WINDOW_HEIGHT = 115;
 const DEFAULT_WINDOW_WIDTH = 400;
 
@@ -77,7 +78,15 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
   const navigate = useNavigate();
 
   const shouldStopAutoResizeRef = useRef<boolean>(getIsManuallyResized());
-  const isProgrammaticResizeRef = useRef<boolean>(false);
+  // Size of the last programmatic resize, in physical pixels. Resize
+  // events arriving at this size are echoes of our own setSize;
+  // anything else is the user dragging an edge.
+  const expectedSizeRef = useRef<PhysicalSize | null>(null);
+  // The native resize animation emits a stream of intermediate sizes;
+  // manual-resize detection pauses until it has settled.
+  const suppressResizeUntilRef = useRef(0);
+  // The monitor the window is on, valid until the window moves.
+  const monitorRef = useRef<Monitor | null>(null);
 
   const editorContentRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -85,15 +94,27 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
   const bottomDividerRef = useRef<HTMLDivElement>(null);
   const topDividerRef = useRef<HTMLDivElement>(null);
 
-  useOnWindowResize(() => {
-    if (isProgrammaticResizeRef.current) {
-      isProgrammaticResizeRef.current = false;
+  useOnWindowResize(async () => {
+    if (shouldStopAutoResizeRef.current) {
+      return;
+    }
+
+    if (Date.now() < suppressResizeUntilRef.current) {
+      return;
+    }
+
+    const size = await getCurrentWindow().outerSize();
+    const expected = expectedSizeRef.current;
+    if (
+      expected !== null &&
+      Math.abs(size.width - expected.width) <= 1 &&
+      Math.abs(size.height - expected.height) <= 1
+    ) {
       return;
     }
 
     const editorContent = editorContentRef.current;
-    const isDisabled = shouldStopAutoResizeRef.current;
-    if (!editorContent || isDisabled) {
+    if (!editorContent) {
       return;
     }
 
@@ -103,86 +124,87 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
     editor?.commands?.focus();
   });
 
-  const calculateEditorHeight = (currentEditor: TiptapEditor) => {
-    const header = headerRef.current;
-    const menuBar = menuBarRef.current;
-    const editorDom = currentEditor.view.dom;
-    const topDivider = topDividerRef.current;
-    const bottomDivider = bottomDividerRef.current;
-    if (!header || !menuBar || !editorDom || !topDivider || !bottomDivider) {
-      return undefined;
-    }
+  useEffect(() => {
+    const unlisten = getCurrentWindow().onMoved(() => {
+      monitorRef.current = null;
+    });
 
-    const editorHeight = editorDom.getBoundingClientRect().height;
-    const menuBarHeight = menuBar.getBoundingClientRect().height;
-    const headerHeight = header.getBoundingClientRect().height;
-    const topDividerHeight = topDivider.getBoundingClientRect().height;
-    const bottomDividerHeight = bottomDivider.getBoundingClientRect().height;
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, []);
 
-    return (
-      editorHeight +
-      menuBarHeight +
-      headerHeight +
-      topDividerHeight +
-      bottomDividerHeight
-    );
-  };
-
-  const handleAutoResize = useCallback(
-    async (currentEditor: TiptapEditor) => {
+  // Resizes the window to fit the note's content, capped at 75% of the
+  // monitor's work area. Returns 'unchanged' when the window already
+  // fits, and undefined when the layout wasn't measurable.
+  const fitWindowToContent = useCallback(
+    async (currentEditor: TiptapEditor, options?: { animate?: boolean }) => {
+      const header = headerRef.current;
+      const menuBar = menuBarRef.current;
       const editorContent = editorContentRef.current;
       const topDivider = topDividerRef.current;
       const bottomDivider = bottomDividerRef.current;
-      if (!editorContent || !topDivider || !bottomDivider) {
-        return;
+      if (
+        !header ||
+        !menuBar ||
+        !editorContent ||
+        !topDivider ||
+        !bottomDivider
+      ) {
+        return undefined;
       }
 
-      const shouldStop = shouldStopAutoResizeRef.current;
-      if (shouldStop) {
-        return;
-      }
+      const totalHeight =
+        currentEditor.view.dom.getBoundingClientRect().height +
+        menuBar.getBoundingClientRect().height +
+        header.getBoundingClientRect().height +
+        topDivider.getBoundingClientRect().height +
+        bottomDivider.getBoundingClientRect().height;
 
-      const totalHeight = calculateEditorHeight(currentEditor);
-      if (totalHeight === undefined) {
-        return;
-      }
-
-      const monitor = await currentMonitor();
+      let monitor = monitorRef.current;
       if (!monitor) {
-        return;
+        monitor = await currentMonitor();
+        monitorRef.current = monitor;
+      }
+      if (!monitor) {
+        return undefined;
       }
 
       const scaleFactor = monitor.scaleFactor;
-      const screenHeight = monitor.workArea.size.height;
+      const maxHeight = Math.floor(monitor.workArea.size.height * 0.75);
+      const minHeight = DEFAULT_WINDOW_HEIGHT * scaleFactor;
 
-      const currentWindow = getCurrentWindow();
-      const currentSize = await currentWindow.outerSize();
+      const calculatedHeight = Math.max(minHeight, totalHeight * scaleFactor);
+      const newHeight = Math.ceil(Math.min(maxHeight, calculatedHeight));
 
-      const MAX_HEIGHT = Math.floor(screenHeight * 0.75);
-      const MIN_HEIGHT = DEFAULT_WINDOW_HEIGHT * scaleFactor;
-
-      const calculatedHeight = Math.max(MIN_HEIGHT, totalHeight * scaleFactor);
-      const newHeight = Math.ceil(Math.min(MAX_HEIGHT, calculatedHeight));
-
-      const hasCrossedMaxHeight = calculatedHeight >= MAX_HEIGHT;
-      editorContent.classList.toggle('overflow-y-scroll', hasCrossedMaxHeight);
+      editorContent.classList.toggle(
+        'overflow-y-scroll',
+        calculatedHeight >= maxHeight
+      );
       bottomDivider.style.opacity = '0';
       topDivider.style.opacity = '0';
 
-      shouldStopAutoResizeRef.current = false;
-      isProgrammaticResizeRef.current = true;
-      setIsManuallyResized(false);
+      const currentWindow = getCurrentWindow();
+      const currentSize = await currentWindow.outerSize();
+      // Within rounding of the target already; skip the resize so no
+      // resize event is emitted that would need explaining away.
+      if (Math.abs(currentSize.height - newHeight) <= 2) {
+        return 'unchanged' as const;
+      }
 
-      await currentWindow.setSize(
-        new PhysicalSize(currentSize.width, newHeight)
-      );
+      const newSize = new PhysicalSize(currentSize.width, newHeight);
+      expectedSizeRef.current = newSize;
+      if (options?.animate) {
+        suppressResizeUntilRef.current = Date.now() + 600;
+        await invoke('cmd_animate_window_height', {
+          height: newHeight / scaleFactor,
+        });
+      } else {
+        await currentWindow.setSize(newSize);
+      }
+      return 'resized' as const;
     },
-    [
-      calculateEditorHeight,
-      editorContentRef,
-      shouldStopAutoResizeRef,
-      isProgrammaticResizeRef,
-    ]
+    []
   );
 
   const isDirtyRef = useRef<boolean>(false);
@@ -198,18 +220,38 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
           'focus:outline-none cursor-text! border-none px-5 pb-0 pt-2 editor-content',
       },
     },
-    onTransaction: async ({ transaction, editor }) => {
-      const type = getTransactionType(transaction);
-      if (!type) {
-        return;
-      }
-
-      await handleAutoResize(editor);
-    },
     onUpdate: () => {
       isDirtyRef.current = true;
     },
   });
+
+  // The window tracks the content's height through a ResizeObserver on
+  // the editor's DOM: unlike listening to editor transactions, it also
+  // catches async growth like code blocks receiving their highlighting.
+  useEffect(() => {
+    if (!editor) {
+      return;
+    }
+
+    // The observer reports once on observe; the window shouldn't jump
+    // on mount.
+    let isInitialReport = true;
+    const observer = new ResizeObserver(() => {
+      if (isInitialReport) {
+        isInitialReport = false;
+        return;
+      }
+
+      if (shouldStopAutoResizeRef.current) {
+        return;
+      }
+
+      fitWindowToContent(editor);
+    });
+
+    observer.observe(editor.view.dom);
+    return () => observer.disconnect();
+  }, [editor, fitWindowToContent]);
 
   const queryClient = useQueryClient();
   const { mutate: upsertNote, isPending: isUpsertingNote } = useMutation({
@@ -290,70 +332,27 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
     });
   }, [editor]);
 
-  const handleDoubleClick = useCallback(
-    async (e: React.MouseEvent<HTMLDivElement>) => {
-      const target = e.target instanceof HTMLElement ? e.target : null;
-      if (target?.id !== HEADER_ID) {
-        return;
-      }
+  // Fits the window to its content; when it already fits, snaps the
+  // window to the monitor's top-right corner instead.
+  const handleDoubleClick = useCallback(async () => {
+    // The double click is also the gesture that re-enables auto-sizing
+    // after a manual resize.
+    shouldStopAutoResizeRef.current = false;
+    setIsManuallyResized(false);
 
-      const editorContent = editorContentRef.current;
-      const topDivider = topDividerRef.current;
-      const bottomDivider = bottomDividerRef.current;
-      if (!editorContent || !topDivider || !bottomDivider) {
-        return;
-      }
+    const result = await fitWindowToContent(editor, { animate: true });
+    if (result === undefined) {
+      return;
+    }
 
-      const totalHeight = calculateEditorHeight(editor);
-      if (totalHeight === undefined) {
-        return;
-      }
+    if (result === 'unchanged') {
+      // Already fitted: tuck the window into the screen's top-right
+      // corner instead.
+      await invoke('cmd_snap_window_to_corner');
+    }
 
-      const monitor = await currentMonitor();
-      if (!monitor) {
-        return;
-      }
-      const scaleFactor = monitor.scaleFactor;
-      const screenHeight = monitor.workArea.size.height;
-
-      const currentWindow = getCurrentWindow();
-      const currentSize = await currentWindow.outerSize();
-
-      const MAX_HEIGHT = Math.floor(screenHeight * 0.75);
-      const MIN_HEIGHT = DEFAULT_WINDOW_HEIGHT * scaleFactor;
-
-      const calculatedHeight = Math.max(MIN_HEIGHT, totalHeight * scaleFactor);
-      const newHeight = Math.ceil(Math.min(MAX_HEIGHT, calculatedHeight));
-
-      const shouldReposition = currentSize.height === newHeight;
-      if (shouldReposition) {
-        const x =
-          monitor.position.x +
-          (monitor.size.width - currentSize.width - 40 * scaleFactor);
-        const y = monitor.position.y + 100 * scaleFactor;
-
-        await currentWindow.setPosition(new PhysicalPosition(x, y));
-        shouldStopAutoResizeRef.current = false;
-        setIsManuallyResized(false);
-        editor.commands.focus();
-        return;
-      }
-
-      const hasCrossedMaxHeight = calculatedHeight >= MAX_HEIGHT;
-      editorContent.classList.toggle('overflow-y-scroll', hasCrossedMaxHeight);
-      bottomDivider.style.opacity = '0';
-      topDivider.style.opacity = '0';
-
-      shouldStopAutoResizeRef.current = false;
-      isProgrammaticResizeRef.current = true;
-      setIsManuallyResized(false);
-      await currentWindow.setSize(
-        new PhysicalSize(currentSize.width, newHeight)
-      );
-      editor.commands.focus();
-    },
-    [editor]
-  );
+    editor.commands.focus();
+  }, [editor, fitWindowToContent]);
 
   const handleContentClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
