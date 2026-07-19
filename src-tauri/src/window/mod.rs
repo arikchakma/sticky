@@ -10,7 +10,8 @@ pub use link::{create_link_window, link_window_label, present_link_window};
 pub use main::{create_child_window, create_main_window};
 pub use panel::{panel_recently_hidden, PanelState};
 pub use search::{
-    create_search_window, present_search_window, search_window_label,
+    create_search_window, present_search_window, prewarm_search_window,
+    search_window_label,
 };
 pub use toast::{
     create_toast_window, present_toast_window, toast_window_label, ToastState,
@@ -64,8 +65,9 @@ pub(crate) fn create_window<R: Runtime>(
     handle: &AppHandle<R>,
     config: CreateWindowConfig,
 ) -> WebviewWindow<R> {
+    // The menu is app-wide; only the first window has to build it.
     #[cfg(target_os = "macos")]
-    {
+    if handle.menu().is_none() {
         use crate::window_menu::app_menu;
 
         let menu = app_menu(handle).unwrap();

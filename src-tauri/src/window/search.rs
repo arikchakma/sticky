@@ -44,6 +44,10 @@ pub fn create_search_window(
         always_on_top: true,
         fixed_size: true,
         start_hidden: true,
+        // Focus is always given explicitly when the panel is revealed;
+        // taking it on creation would blur the note window even when
+        // the panel is only built ahead of time.
+        no_auto_focus: true,
         ..Default::default()
     };
 
@@ -73,6 +77,32 @@ pub fn create_search_window(
     attach_panel_lifecycle(parent_window, &search_window);
 
     search_window
+}
+
+/// Builds the search panel ahead of its first use.
+///
+/// Called when its parent note window has finished loading (see the
+/// `on_page_load` hook in `lib.rs`): booting the panel's webview takes
+/// long enough to be felt when it happens on the first toggle, so it
+/// happens right after the note window has settled instead. The
+/// pre-warmed panel stays hidden and unfocused until it is presented.
+pub fn prewarm_search_window(parent_window: &WebviewWindow) {
+    // Hop off the page-load callback; creating windows inside event
+    // handlers is prone to deadlocks.
+    let parent = parent_window.clone();
+    tauri::async_runtime::spawn(async move {
+        // The parent may have closed in the meantime, and the user may
+        // also have beaten the page load to the panel.
+        let windows = parent.app_handle().webview_windows();
+        let label = search_window_label(parent.label());
+        if !windows.contains_key(parent.label()) || windows.contains_key(&label)
+        {
+            return;
+        }
+
+        let url = format!("/search?parent={}&prewarm=true", parent.label());
+        create_search_window(&parent, &url);
+    });
 }
 
 /// Re-anchors an existing (hidden) search panel to its parent and

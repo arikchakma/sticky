@@ -25,6 +25,9 @@ import { listNotesOptions } from '~/queries/notes';
 type SearchParams = {
   parent: string;
   noteId?: string;
+  // The panel was built ahead of its first use; the native side
+  // reveals it when it is first presented.
+  prewarm?: boolean;
 };
 
 export const Route = createFileRoute('/search')({
@@ -32,11 +35,12 @@ export const Route = createFileRoute('/search')({
   validateSearch: (search: Record<string, unknown>): SearchParams => ({
     parent: typeof search.parent === 'string' ? search.parent : '',
     noteId: typeof search.noteId === 'string' ? search.noteId : undefined,
+    prewarm: search.prewarm === true,
   }),
 });
 
 function SearchPage() {
-  const { parent, noteId: initialNoteId } = Route.useSearch();
+  const { parent, noteId: initialNoteId, prewarm } = Route.useSearch();
 
   const [search, setSearch] = useState('');
   // The panel outlives navigations in the parent window, so the active
@@ -170,7 +174,8 @@ function SearchPage() {
   // The window shrinks to fit the list, capped at SEARCH_WINDOW_HEIGHT.
   // Resizing keeps the top-left corner, so the panel stays anchored to
   // its parent. It is created invisible and shown here on first
-  // measure, already at the right size.
+  // measure, already at the right size — unless it was pre-warmed,
+  // where revealing is left to the native side.
   useLayoutEffect(() => {
     if (isLoadingNotes) {
       return;
@@ -192,7 +197,7 @@ function SearchPage() {
       const currentWindow = getCurrentWindow();
       await currentWindow.setSize(new LogicalSize(window.innerWidth, height));
 
-      if (isShownRef.current) {
+      if (isShownRef.current || prewarm) {
         return;
       }
 

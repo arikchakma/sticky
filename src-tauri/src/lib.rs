@@ -8,6 +8,7 @@ use log::{error, warn, Level, Record};
 use sticky_models::error::Error;
 use sticky_models::models::Note;
 use sticky_models::queries::{delete_note, get_note, list_notes, upsert_note};
+use tauri::webview::PageLoadEvent;
 use tauri::{
     include_image, tray::TrayIconBuilder, App, AppHandle, Emitter, Manager,
     RunEvent, Runtime, WebviewWindow, WindowEvent,
@@ -352,6 +353,21 @@ pub fn run() {
         )
         .plugin(tauri_plugin_dialog::init())
         .plugin(sticky_models::plugin::init())
+        // A note window that has finished loading is about to need its
+        // search panel; build it ahead of the first toggle.
+        .on_page_load(|webview, payload| {
+            if !matches!(payload.event(), PageLoadEvent::Finished)
+                || !webview.label().starts_with(MAIN_WINDOW_PREFIX)
+            {
+                return;
+            }
+
+            if let Some(window) =
+                webview.app_handle().get_webview_window(webview.label())
+            {
+                window::prewarm_search_window(&window);
+            }
+        })
         .setup(|app_handle: &mut App| {
             debug_log!("Setting up Tauri application");
 
