@@ -8,6 +8,7 @@ use log::{error, warn, Level, Record};
 use sticky_models::error::Error;
 use sticky_models::models::Note;
 use sticky_models::queries::{delete_note, get_note, list_notes, upsert_note};
+use sticky_models::watcher::NOTES_CHANGED;
 use tauri::webview::PageLoadEvent;
 use tauri::{
     include_image, tray::TrayIconBuilder, App, AppHandle, Emitter, Manager,
@@ -263,7 +264,11 @@ async fn cmd_upsert_note<R: Runtime>(
     note: Note,
     app_handle: AppHandle<R>,
 ) -> Result<Note, Error> {
-    upsert_note(&app_handle, note).await
+    let note = upsert_note(&app_handle, note).await?;
+    // Other windows showing the list (or this note) refresh on this;
+    // the watcher stays quiet for the store's own writes.
+    let _ = app_handle.emit(NOTES_CHANGED, Some(note.id.clone()));
+    Ok(note)
 }
 
 #[tauri::command]
@@ -271,7 +276,9 @@ async fn cmd_delete_note<R: Runtime>(
     note_id: String,
     app_handle: AppHandle<R>,
 ) -> Result<(), Error> {
-    delete_note(&app_handle, &note_id).await
+    delete_note(&app_handle, &note_id).await?;
+    let _ = app_handle.emit(NOTES_CHANGED, Some(note_id));
+    Ok(())
 }
 
 pub fn custom_colored_format(

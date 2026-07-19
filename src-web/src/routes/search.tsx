@@ -3,10 +3,9 @@ import { SEARCH_WINDOW_HEIGHT, type Note } from '@sticky/models';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { invoke } from '@tauri-apps/api/core';
-import { emitTo } from '@tauri-apps/api/event';
+import { emitTo, listen } from '@tauri-apps/api/event';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window';
-import type { JSONContent } from '@tiptap/react';
 import { StickyNoteIcon } from 'lucide-react';
 import {
   useCallback,
@@ -20,6 +19,7 @@ import { SearchNoteItem, type SearchNote } from '~/components/search-note-item';
 import { Input } from '~/components/ui/input';
 import { Text } from '~/components/ui/text';
 import { getTitleFromContent } from '~/lib/content';
+import { markdownToTiptapJson } from '~/lib/markdown';
 import { listNotesOptions } from '~/queries/notes';
 
 type SearchParams = {
@@ -54,7 +54,7 @@ function SearchPage() {
     select: (data) => {
       return data
         .map((note) => {
-          const doc = JSON.parse(note.content) as JSONContent;
+          const doc = markdownToTiptapJson(note.content);
           const title = getTitleFromContent(doc) || 'Untitled';
           return { ...note, title };
         })
@@ -153,6 +153,18 @@ function SearchPage() {
         inputRef.current?.focus();
       }
     );
+
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [queryClient]);
+
+  // Saves in other windows and external file edits both surface as
+  // `notes:changed`; keep the list fresh while the panel is open.
+  useEffect(() => {
+    const unlisten = listen('notes:changed', () => {
+      queryClient.invalidateQueries(listNotesOptions());
+    });
 
     return () => {
       unlisten.then((fn) => fn());

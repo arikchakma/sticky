@@ -1,6 +1,7 @@
 pub mod constants;
 pub mod error;
-mod migrate;
 pub mod models;
 pub mod plugin;
 pub mod queries;
+pub mod store;
+pub mod watcher;

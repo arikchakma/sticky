@@ -12,17 +12,16 @@ import {
   EditorContent,
   Editor as TiptapEditor,
   useEditor,
-  type JSONContent,
 } from '@tiptap/react';
 import { useCallback, useEffect, useRef } from 'react';
 import { Divider } from '~/components/divider';
 import { Header } from '~/components/header';
 import { MenuBar } from '~/components/menu-bar/menu-bar';
 import { useInterval } from '~/hooks/use-interval';
+import { useNoteSync } from '~/hooks/use-note-sync';
 import { useOnFocusChanged } from '~/hooks/use-on-focus-changed';
 import { useOnWindowResize } from '~/hooks/use-on-window-resize';
 import { getIsManuallyResized, setIsManuallyResized } from '~/lib/autosize';
-import defaultNoteContent from '~/lib/default-note-content.json';
 import { editorExtensions } from '~/lib/editor-extensions';
 import { clamp } from '~/lib/number';
 import { listNotesOptions } from '~/queries/notes';
@@ -31,7 +30,7 @@ const EDITOR_CONTENT_ID = 'editor-content';
 
 type SkeletonEditorProps = {
   noteId?: string;
-  content?: JSONContent;
+  content?: string;
 };
 
 export function SkeletonEditor(props: SkeletonEditorProps) {
@@ -173,6 +172,7 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
   const editor = useEditor({
     extensions: editorExtensions,
     content: defaultContent ?? '',
+    contentType: 'markdown',
     autofocus: 'end',
     editorProps: {
       scrollThreshold: 40,
@@ -216,15 +216,19 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
   }, [editor, fitWindowToContent]);
 
   const queryClient = useQueryClient();
-  const { mutate: upsertNote, isPending: isUpsertingNote } = useMutation({
-    mutationFn: (content: JSONContent) => {
+  const {
+    mutate: upsertNote,
+    mutateAsync: upsertNoteAsync,
+    isPending: isUpsertingNote,
+  } = useMutation({
+    mutationFn: (content: string) => {
       if (!currentNoteId) {
         return Promise.resolve();
       }
 
       const details = {
         id: currentNoteId,
-        content: JSON.stringify(content),
+        content,
       };
 
       return invoke('cmd_upsert_note', {
@@ -241,13 +245,18 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       return;
     }
 
-    const content = editor.getJSON();
-    upsertNote(content, {
-      onSettled: () => {
-        isDirtyRef.current = false;
+    // The flag clears at snapshot time, not when the save settles:
+    // edits landing while the save is in flight re-mark it and the
+    // next tick picks them up. Clearing afterwards swallowed those
+    // edits — and the `notes:changed` reload then reverted the
+    // "clean" editor to the stale disk content.
+    isDirtyRef.current = false;
+    upsertNote(editor.getMarkdown(), {
+      onError: () => {
+        isDirtyRef.current = true;
       },
     });
-  }, 1000);
+  }, 250);
 
   const onScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const bottomDivider = bottomDividerRef.current;
@@ -283,7 +292,7 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
     const newNote = await invoke<Note>('cmd_upsert_note', {
       note: {
         model: 'note',
-        content: JSON.stringify(defaultNoteContent),
+        content: '',
       },
     });
 
@@ -341,7 +350,17 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
 
     const unlistenSelected = currentWindow.listen<string>(
       'search:note-selected',
-      (event) => {
+      async (event) => {
+        // Unsaved edits must reach disk before the route swaps the
+        // editor out, or they die with it — the autosave interval
+        // won't get another tick.
+        if (isDirtyRef.current) {
+          isDirtyRef.current = false;
+          await upsertNoteAsync(editor.getMarkdown()).catch(() => {
+            isDirtyRef.current = true;
+          });
+        }
+
         navigate({
           to: '/$noteId',
           params: {
@@ -362,11 +381,13 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       unlistenSelected.then((fn) => fn());
       unlistenDeleted.then((fn) => fn());
     };
-  }, [navigate]);
+  }, [navigate, editor, upsertNoteAsync]);
 
   useOnFocusChanged(() => {
     queryClient.invalidateQueries(listNotesOptions());
   });
+
+  useNoteSync(editor, currentNoteId, isDirtyRef);
 
   return (
     <main>

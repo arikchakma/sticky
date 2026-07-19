@@ -1,48 +1,59 @@
-use log::error;
-use r2d2::Pool;
-use r2d2_sqlite::SqliteConnectionManager;
-use std::fs::create_dir_all;
-use std::time::Duration;
-use tauri::async_runtime::Mutex;
+use std::path::PathBuf;
+
+use log::{error, warn};
 use tauri::plugin::TauriPlugin;
-use tauri::{Manager, Runtime};
+use tauri::{AppHandle, Manager, Runtime};
 
-use crate::migrate::migrate_db;
+use crate::store::NotesStore;
+use crate::watcher;
 
-pub struct SqliteConnection(pub Mutex<Pool<SqliteConnectionManager>>);
-
-impl SqliteConnection {
-    pub(crate) fn new(pool: Pool<SqliteConnectionManager>) -> Self {
-        Self(Mutex::new(pool))
-    }
-}
-
+/// The plugin owning note storage: opens the store and starts the
+/// file watcher.
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     tauri::plugin::Builder::new("sticky_models")
         .setup(|app_handle, _api| {
-            let app_path = app_handle
-                .path()
-                .app_data_dir()
-                .expect("App data directory should be resolvable");
-            create_dir_all(app_path.clone())
-                .expect("Problem creating App directory!");
+            let store =
+                NotesStore::open(notes_dir(app_handle)).map_err(|e| {
+                    error!("Failed to open notes store: {e:?}");
+                    Box::<dyn std::error::Error>::from(e.to_string())
+                })?;
 
-            let db_file_path = app_path.join("db.sqlite");
+            app_handle.manage(store);
 
-            let manager = SqliteConnectionManager::file(db_file_path);
-            let pool = Pool::builder()
-                .max_size(100)
-                .connection_timeout(Duration::from_secs(10))
-                .build(manager)
-                .expect("Failed to create SQLite connection pool");
-
-            if let Err(e) = migrate_db(&pool) {
-                error!("Failed to run database migration {e:?}");
-                return Err(Box::from(e.to_string()));
+            // The app stays usable without live external-change
+            // events, so a watcher failure only logs.
+            if let Err(e) = watcher::start(app_handle) {
+                error!("Failed to start notes watcher: {e:?}");
             }
 
-            app_handle.manage(SqliteConnection::new(pool.clone()));
             Ok(())
         })
         .build()
+}
+
+/// The folder holding the note files: `Sticky` in the user's home
+/// directory. Unlike Documents, the home root has no macOS privacy
+/// gate (every agent and tool can read the notes without a permission
+/// prompt) and is never captured by iCloud's Desktop & Documents
+/// sync. Falls back to the app data directory when no home directory
+/// resolves. Dev builds get their own folder so experiments never
+/// touch real notes.
+fn notes_dir<R: Runtime>(app_handle: &AppHandle<R>) -> PathBuf {
+    let folder = if app_handle.config().identifier.ends_with(".dev") {
+        "Sticky Dev"
+    } else {
+        "Sticky"
+    };
+
+    match app_handle.path().home_dir() {
+        Ok(home) => home.join(folder),
+        Err(e) => {
+            warn!("No home folder ({e}); keeping notes in app data");
+            app_handle
+                .path()
+                .app_data_dir()
+                .expect("App data directory should be resolvable")
+                .join("notes")
+        }
+    }
 }

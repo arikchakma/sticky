@@ -2,7 +2,7 @@ import type { Note } from '@sticky/models';
 import { createFileRoute, redirect } from '@tanstack/react-router';
 import { invoke } from '@tauri-apps/api/core';
 import { SkeletonEditor } from '~/components/skeleton-editor';
-import welcomeNoteContent from '~/lib/welcome-note-content.json';
+import { welcomeNoteContent } from '~/lib/welcome-note-content';
 
 export const Route = createFileRoute('/')({
   component: IndexPage,
@@ -18,7 +18,7 @@ export const Route = createFileRoute('/')({
       const note = await invoke<Note>('cmd_upsert_note', {
         note: {
           model: 'note',
-          content: JSON.stringify(welcomeNoteContent),
+          content: welcomeNoteContent,
         },
       });
 

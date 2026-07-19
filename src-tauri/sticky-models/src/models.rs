@@ -1,6 +1,4 @@
 use chrono::{DateTime, Utc};
-use rusqlite::Row;
-use sea_query::Iden;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 use ts_rs::TS;
@@ -15,31 +13,6 @@ pub struct Note {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub content: String,
-}
-
-#[derive(Iden)]
-pub enum NoteIden {
-    #[iden = "notes"]
-    Table,
-    Model,
-    Id,
-    CreatedAt,
-    UpdatedAt,
-    Content,
-}
-
-impl<'s> TryFrom<&Row<'s>> for Note {
-    type Error = rusqlite::Error;
-
-    fn try_from(r: &Row<'s>) -> Result<Self, Self::Error> {
-        Ok(Self {
-            id: r.get("id")?,
-            model: r.get("model")?,
-            created_at: r.get("created_at")?,
-            updated_at: r.get("updated_at")?,
-            content: r.get("content")?,
-        })
-    }
 }
 
 impl Note {
