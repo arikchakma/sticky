@@ -63,8 +63,19 @@ async fn cmd_new_main_window(
 #[tauri::command]
 async fn cmd_header_mouse_down(window: WebviewWindow) -> Result<bool, String> {
     #[cfg(target_os = "macos")]
-    if mac_window::last_click_count() == 2 {
-        return Ok(true);
+    {
+        if mac_window::take_click_count() == 2 {
+            return Ok(true);
+        }
+
+        // A fast click is already over by the time this command runs;
+        // starting the drag session anyway would keep it alive until
+        // the *next* mouseup, eating the second press of a double
+        // click before the monitor or the webview ever see it. With
+        // the button released there is nothing to drag.
+        if !mac_window::is_left_mouse_down() {
+            return Ok(false);
+        }
     }
 
     window.start_dragging().map_err(|e| e.to_string())?;

@@ -197,9 +197,17 @@ fn traffic_light_button_class() -> &'static objc::runtime::Class {
 static LAST_CLICK_COUNT: AtomicI64 = AtomicI64::new(0);
 
 // AppKit's click count for the most recent left mousedown, recorded by
-// the monitor installed below.
-pub fn last_click_count() -> i64 {
-    LAST_CLICK_COUNT.load(Ordering::Relaxed)
+// the monitor installed below. Reading consumes the count: both presses
+// of a double click query it, and only one may see the 2.
+pub fn take_click_count() -> i64 {
+    LAST_CLICK_COUNT.swap(0, Ordering::Relaxed)
+}
+
+// Whether the left mouse button is currently pressed, system-wide.
+pub fn is_left_mouse_down() -> bool {
+    let buttons: u64 =
+        unsafe { msg_send![class!(NSEvent), pressedMouseButtons] };
+    buttons & 1 != 0
 }
 
 // Records the click count of every left mousedown before it is
