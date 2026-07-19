@@ -6,8 +6,6 @@ import {
 } from 'shiki';
 
 import { invariant } from '@tanstack/react-router';
-import { CodeBlock as CodeBlockExtension } from '@tiptap/extension-code-block';
-import { createHighlightPlugin } from 'prosemirror-highlight';
 import { createParser, type Parser } from 'prosemirror-highlight/shiki';
 import { shikiTheme } from './theme';
 
@@ -45,7 +43,7 @@ export async function initHighlighter() {
  * promise that resolves when the highlighter or the language is loaded.
  * Otherwise, it returns an array of decorations.
  */
-const lazyParser: Parser = (options) => {
+export const lazyParser: Parser = (options) => {
   invariant(highlighter, 'Highlighter not initialized');
 
   const language = options.language as BuiltinLanguage;
@@ -59,12 +57,3 @@ const lazyParser: Parser = (options) => {
 
   return parser(options);
 };
-
-export const CodeBlock = CodeBlockExtension.extend({
-  addProseMirrorPlugins() {
-    return [
-      ...(this.parent?.() ?? []),
-      createHighlightPlugin({ parser: lazyParser }),
-    ];
-  },
-});

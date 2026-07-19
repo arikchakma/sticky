@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { Editor, type JSONContent } from '@tiptap/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { editorExtensions } from './editor-extensions';
+import { editorExtensions } from './extensions/extensions';
 
 let editors: Editor[] = [];
 

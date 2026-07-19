@@ -9,7 +9,7 @@ import { useNoteAutosave } from '~/hooks/use-note-autosave';
 import { useNoteSync } from '~/hooks/use-note-sync';
 import { useOnFocusChanged } from '~/hooks/use-on-focus-changed';
 import { useWindowAutoSize } from '~/hooks/use-window-autosize';
-import { editorExtensions } from '~/lib/editor-extensions';
+import { editorExtensions } from '~/lib/extensions/extensions';
 import { clamp } from '~/lib/number';
 import { listNotesOptions } from '~/queries/notes';
 
