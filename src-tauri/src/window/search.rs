@@ -1,14 +1,12 @@
 //! The floating search panel.
 
+use sticky_models::constants::SEARCH_WINDOW_HEIGHT;
+
 use super::panel::attach_panel_lifecycle;
 use super::*;
 
 pub const SEARCH_WINDOW_MIN_WIDTH: f64 = 360.0;
 pub const SEARCH_WINDOW_MAX_WIDTH: f64 = 480.0;
-/// Maximum panel height; the frontend shrinks the window to fit its
-/// content. Keep in sync with MAX_PANEL_HEIGHT in src-web's search
-/// route.
-pub const SEARCH_WINDOW_HEIGHT: f64 = 430.0;
 /// Horizontal inset from the parent window's edges.
 pub const SEARCH_WINDOW_INSET: f64 = 16.0;
 /// Distance between the parent's top edge and the panel's.

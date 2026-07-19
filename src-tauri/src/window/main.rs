@@ -3,7 +3,7 @@
 use super::*;
 
 pub const DEFAULT_FIRST_MAIN_WINDOW_HEIGHT: f64 = 190.0;
-pub const DEFAULT_WINDOW_WIDTH: f64 = 400.0;
+pub const DEFAULT_WINDOW_WIDTH: f64 = MIN_WINDOW_WIDTH;
 pub const DEFAULT_WINDOW_HEIGHT: f64 = 700.0;
 
 pub const MAX_WINDOW_WIDTH: f64 = 700.0;

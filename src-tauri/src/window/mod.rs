@@ -34,8 +34,7 @@ pub const MAIN_WINDOW_PREFIX: &str = "main_";
 /// these.
 pub const OTHER_WINDOW_PREFIX: &str = "other_";
 
-pub const MIN_WINDOW_WIDTH: f64 = 400.0;
-pub const MIN_WINDOW_HEIGHT: f64 = 115.0;
+pub use sticky_models::constants::{MIN_WINDOW_HEIGHT, MIN_WINDOW_WIDTH};
 
 /// Settings for a window about to be created.
 #[derive(Default, Debug)]

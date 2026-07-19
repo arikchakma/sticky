@@ -1,4 +1,4 @@
-import type { Note } from '@sticky/models';
+import { MIN_WINDOW_HEIGHT, MIN_WINDOW_WIDTH, type Note } from '@sticky/models';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { invoke } from '@tauri-apps/api/core';
@@ -28,10 +28,6 @@ import { clamp } from '~/lib/number';
 import { listNotesOptions } from '~/queries/notes';
 
 const EDITOR_CONTENT_ID = 'editor-content';
-// Keep in sync with MIN_WINDOW_HEIGHT and DEFAULT_WINDOW_WIDTH in
-// src-tauri/src/window/.
-const DEFAULT_WINDOW_HEIGHT = 115;
-const DEFAULT_WINDOW_WIDTH = 400;
 
 type SkeletonEditorProps = {
   noteId?: string;
@@ -138,7 +134,7 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
 
       const scaleFactor = monitor.scaleFactor;
       const maxHeight = Math.floor(monitor.workArea.size.height * 0.75);
-      const minHeight = DEFAULT_WINDOW_HEIGHT * scaleFactor;
+      const minHeight = MIN_WINDOW_HEIGHT * scaleFactor;
 
       const calculatedHeight = Math.max(minHeight, totalHeight * scaleFactor);
       const newHeight = Math.ceil(Math.min(maxHeight, calculatedHeight));
@@ -294,7 +290,7 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
     queryClient.invalidateQueries(listNotesOptions());
     await invoke('cmd_new_main_window', {
       url: `/${newNote.id}`,
-      size: [DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT],
+      size: [MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT],
     });
   }, [editor]);
 

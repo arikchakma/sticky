@@ -1,10 +1,6 @@
 import { Autocomplete } from '@base-ui/react/autocomplete';
-import type { Note } from '@sticky/models';
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query';
+import { SEARCH_WINDOW_HEIGHT, type Note } from '@sticky/models';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { invoke } from '@tauri-apps/api/core';
 import { emitTo } from '@tauri-apps/api/event';
@@ -20,17 +16,11 @@ import {
   useRef,
   useState,
 } from 'react';
-import {
-  SearchNoteItem,
-  type SearchNote,
-} from '~/components/search-note-item';
+import { SearchNoteItem, type SearchNote } from '~/components/search-note-item';
 import { Input } from '~/components/ui/input';
 import { Text } from '~/components/ui/text';
 import { getTitleFromContent } from '~/lib/content';
 import { listNotesOptions } from '~/queries/notes';
-
-// Keep in sync with SEARCH_WINDOW_HEIGHT in src-tauri/src/window.rs.
-const MAX_PANEL_HEIGHT = 430;
 
 type SearchParams = {
   parent: string;
@@ -177,7 +167,7 @@ function SearchPage() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [dismiss]);
 
-  // The window shrinks to fit the list, capped at MAX_PANEL_HEIGHT.
+  // The window shrinks to fit the list, capped at SEARCH_WINDOW_HEIGHT.
   // Resizing keeps the top-left corner, so the panel stays anchored to
   // its parent. It is created invisible and shown here on first
   // measure, already at the right size.
@@ -196,7 +186,7 @@ function SearchPage() {
       inputRow.getBoundingClientRect().height +
         content.getBoundingClientRect().height
     );
-    const height = Math.min(contentHeight, MAX_PANEL_HEIGHT);
+    const height = Math.min(contentHeight, SEARCH_WINDOW_HEIGHT);
 
     const fitAndReveal = async () => {
       const currentWindow = getCurrentWindow();
@@ -268,7 +258,7 @@ function SearchPage() {
         </div>
 
         <div
-          className="scroll-py-3 grow overflow-y-auto"
+          className="grow scroll-py-3 overflow-y-auto"
           // Keep the input focused, so keyboard navigation stays alive
           // after clicking inside the list.
           onMouseDown={(e) => e.preventDefault()}

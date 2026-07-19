@@ -1,3 +1,4 @@
+pub mod constants;
 pub mod error;
 mod migrate;
 pub mod models;
