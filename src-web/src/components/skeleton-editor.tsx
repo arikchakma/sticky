@@ -9,6 +9,7 @@ import { useNoteAutosave } from '~/hooks/use-note-autosave';
 import { useNoteSync } from '~/hooks/use-note-sync';
 import { useOnFocusChanged } from '~/hooks/use-on-focus-changed';
 import { useWindowAutoSize } from '~/hooks/use-window-autosize';
+import { useWindowReveal } from '~/hooks/use-window-reveal';
 import { editorExtensions } from '~/lib/extensions/extensions';
 import { clamp } from '~/lib/number';
 import { listNotesOptions } from '~/queries/notes';
@@ -75,6 +76,7 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
   });
 
   useNoteSync(editor, currentNoteId, isDirtyRef);
+  useWindowReveal(editor);
 
   const onScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const bottomDivider = bottomDividerRef.current;

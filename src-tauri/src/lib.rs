@@ -431,6 +431,7 @@ pub fn run() {
     let mut builder = tauri::Builder::default()
         .plugin(
             tauri_plugin_window_state::Builder::new()
+                .with_state_flags(StateFlags::all() - StateFlags::VISIBLE)
                 .skip_initial_state(&format!("{MAIN_WINDOW_PREFIX}0"))
                 // Utility windows (like the search panel) are positioned
                 // by the app; restoring a saved state would override it.
@@ -510,7 +511,9 @@ pub fn run() {
                         window::create_main_window(&handle, "/", None, None);
 
                     tauri::async_runtime::spawn(async move {
-                        match window.restore_state(StateFlags::all()) {
+                        match window.restore_state(
+                            StateFlags::all() - StateFlags::VISIBLE,
+                        ) {
                             Ok(_) => {
                                 debug_log!("Restored window size successfully");
                             }

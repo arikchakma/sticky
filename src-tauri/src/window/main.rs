@@ -42,6 +42,10 @@ pub fn create_main_window(
         hide_titlebar: true,
         always_on_top: true,
         max_size: Some((Some(MAX_WINDOW_WIDTH), None)),
+        // Kept invisible until the frontend has painted the themed
+        // editor, which reveals the window; showing any earlier would
+        // flash the webview's white default background.
+        start_hidden: true,
         ..Default::default()
     };
 
