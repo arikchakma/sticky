@@ -407,7 +407,7 @@ pub fn run() {
         eprintln!("Failed to create log directory: {}", e);
     });
 
-    let mut logger = Logger::with(log_spec)
+    let logger = Logger::with(log_spec)
         .log_to_file(FileSpec::default().directory(log_dir))
         .rotate(
             Criterion::Age(Age::Day),
@@ -417,12 +417,12 @@ pub fn run() {
         .format_for_files(flexi_logger::detailed_format);
 
     #[cfg(debug_assertions)]
-    {
+    let logger = {
         use flexi_logger::Duplicate;
-        logger = logger
+        logger
             .duplicate_to_stdout(Duplicate::All)
-            .format_for_stdout(custom_colored_format);
-    }
+            .format_for_stdout(custom_colored_format)
+    };
 
     logger.start().unwrap_or_else(|e| {
         panic!("Failed to initialize logger: {}", e);
