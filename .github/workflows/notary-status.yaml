@@ -1,0 +1,22 @@
+name: Notary Status
+
+on:
+  workflow_dispatch:
+
+jobs:
+  history:
+    name: notarytool history
+    runs-on: macos-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Show notarization submission history
+        run: |
+          xcrun notarytool history \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID"
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
