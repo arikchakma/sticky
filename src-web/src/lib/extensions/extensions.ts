@@ -1,3 +1,4 @@
+import { Typography } from '@tiptap/extension-typography';
 import { CharacterCount } from '@tiptap/extensions';
 import { Markdown } from '@tiptap/markdown';
 import { CodeBlockExtension } from './code-block';
@@ -16,4 +17,5 @@ export const editorExtensions = [
   CharacterCount,
   PlaceholderExtension,
   CodeBlockExtension,
+  Typography,
 ];

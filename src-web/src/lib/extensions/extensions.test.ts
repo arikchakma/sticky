@@ -150,6 +150,19 @@ function caretAtStartOf(editor: Editor, text: string) {
   editor.commands.setTextSelection(found);
 }
 
+function type(editor: Editor, text: string) {
+  for (const char of text) {
+    const { from, to } = editor.state.selection;
+    const insert = () => editor.state.tr.insertText(char, from, to);
+    const handled = editor.view.someProp('handleTextInput', (handler) =>
+      handler(editor.view, from, to, char, insert)
+    );
+    if (!handled) {
+      editor.view.dispatch(insert());
+    }
+  }
+}
+
 function selectText(editor: Editor, text: string) {
   let found = -1;
   editor.state.doc.descendants((node, pos) => {
@@ -310,6 +323,28 @@ describe('editor extensions', () => {
     pressTab(editor, true);
 
     expect(editor.getMarkdown()).toBe('- [x] parent\n- [ ] child');
+  });
+
+  it('typing -> and <- becomes arrows', () => {
+    const editor = createEditor();
+    type(editor, 'a -> b <- c');
+
+    expect(editor.state.doc.textContent).toBe('a → b ← c');
+  });
+
+  it('applies the typography replacements', () => {
+    const editor = createEditor();
+    type(editor, 'wait... (c) 1/2 x != y');
+
+    expect(editor.state.doc.textContent).toBe('wait… © ½ x ≠ y');
+  });
+
+  it('Backspace right after a replacement restores the raw text', () => {
+    const editor = createEditor();
+    type(editor, '(c)');
+    pressBackspace(editor);
+
+    expect(editor.state.doc.textContent).toBe('(c)');
   });
 
   it('exposes character count storage', () => {
