@@ -9,10 +9,7 @@
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
     'Courier New', monospace;
 
-  --color-background: light-dark(
-    var(--color-white),
-    --alpha(var(--color-zinc-950) / 50%)
-  );
+  --color-background: var(--background);
   --color-foreground: light-dark(var(--color-black), var(--color-zinc-100));
   --color-muted: light-dark(var(--color-zinc-100), var(--color-zinc-900));
   --color-muted-foreground: light-dark(
@@ -37,10 +34,8 @@ body,
   @apply bg-background text-foreground selection:bg-selection caret-accent accent-accent h-full w-full overflow-hidden overscroll-none;
 }
 
-/* Never show ligatures */
 :root {
   font-variant-ligatures: none;
-  color-scheme: light dark;
 }
 
 .window-chrome {
@@ -92,7 +87,6 @@ html.window-hovered .window-chrome {
     );
 }
 
-/* Disable user selection to make it more "app-like" */
 :where(*):not(a, input, textarea):not([contenteditable] *):not(
     [contenteditable] *
   )::before,
