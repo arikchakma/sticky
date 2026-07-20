@@ -65,7 +65,7 @@ export const Header = forwardRef<
             }}
             variant="ghost"
             size="icon"
-            className="size-7 shrink-0 text-zinc-300 transition-colors duration-150 hover:text-zinc-600"
+            className="text-faint hover:text-muted-foreground size-7 shrink-0 transition-colors duration-150"
           >
             <LayersIcon className="h-4 w-4" />
           </Button>
@@ -76,7 +76,7 @@ export const Header = forwardRef<
             }}
             variant="ghost"
             size="icon"
-            className="size-7 shrink-0 text-zinc-300 transition-colors duration-150 hover:text-zinc-600"
+            className="text-faint hover:text-muted-foreground size-7 shrink-0 transition-colors duration-150"
           >
             <PlusIcon className="h-4 w-4" />
           </Button>

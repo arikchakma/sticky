@@ -2,23 +2,50 @@
   @apply whitespace-pre-wrap;
   --checklist-checked-icon: url('data:image/svg+xml,%3Csvg%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22currentColor%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20fill-rule%3D%22evenodd%22%20clip-rule%3D%22evenodd%22%20d%3D%22M21.4142%204.58579C22.1953%205.36683%2022.1953%206.63317%2021.4142%207.41421L10.4142%2018.4142C9.63317%2019.1953%208.36684%2019.1953%207.58579%2018.4142L2.58579%2013.4142C1.80474%2012.6332%201.80474%2011.3668%202.58579%2010.5858C3.36683%209.80474%204.63317%209.80474%205.41421%2010.5858L9%2014.1716L18.5858%204.58579C19.3668%203.80474%2020.6332%203.80474%2021.4142%204.58579Z%22%20fill%3D%22currentColor%22%2F%3E%3C%2Fsvg%3E');
 
-  --notes-foreground: var(--color-zinc-900, #171717);
-  --notes-token-constant: var(--color-blue-500, #005ff2);
-  --notes-token-string: var(--color-zinc-700);
-  --notes-token-comment: var(--color-zinc-400);
-  --notes-token-keyword: var(--color-red-500, #c41562);
-  --notes-token-parameter: var(--color-orange-500, #aa4d00);
-  --notes-token-function: var(--color-purple-500, #7d00cc);
-  --notes-token-string-expression: var(--color-zinc-700);
-  --notes-token-punctuation: var(--color-zinc-900, #171717);
-  --notes-token-link: var(--color-zinc-700);
-  --notes-token-number: var(--color-zinc-900, #111111);
-  --notes-token-property: var(--color-blue-500, #005ff2);
-  --notes-highlight: var(--color-blue-100, #dfefff);
-  --notes-highlight-border: var(--color-blue-500, #005ff2);
-  --notes-highlight-hover: #dfefff4d;
-  --notes-token-diff-deleted: var(--color-red-500, #e2162a);
-  --notes-token-diff-inserted: var(--color-green-500, #009432);
+  --notes-foreground: var(--color-foreground);
+  --notes-token-constant: light-dark(
+    var(--color-blue-500),
+    var(--color-blue-400)
+  );
+  --notes-token-string: light-dark(
+    var(--color-zinc-700),
+    var(--color-zinc-300)
+  );
+  --notes-token-comment: var(--color-muted-foreground);
+  --notes-token-keyword: var(--color-accent);
+  --notes-token-parameter: light-dark(
+    var(--color-orange-500),
+    var(--color-orange-400)
+  );
+  --notes-token-function: light-dark(
+    var(--color-purple-500),
+    var(--color-purple-400)
+  );
+  --notes-token-string-expression: light-dark(
+    var(--color-zinc-700),
+    var(--color-zinc-300)
+  );
+  --notes-token-punctuation: var(--color-foreground);
+  --notes-token-link: light-dark(var(--color-zinc-700), var(--color-zinc-300));
+  --notes-token-number: var(--color-foreground);
+  --notes-token-property: light-dark(
+    var(--color-blue-500),
+    var(--color-blue-400)
+  );
+  --notes-highlight: light-dark(var(--color-blue-100), var(--color-blue-950));
+  --notes-highlight-border: light-dark(
+    var(--color-blue-500),
+    var(--color-blue-400)
+  );
+  --notes-highlight-hover: light-dark(
+    --alpha(var(--color-blue-100) / 30%),
+    --alpha(var(--color-blue-950) / 30%)
+  );
+  --notes-token-diff-deleted: var(--color-accent);
+  --notes-token-diff-inserted: light-dark(
+    var(--color-green-500),
+    var(--color-green-400)
+  );
 
   :first-child {
     @apply mt-0!;
@@ -81,7 +108,7 @@
   /* Task items render via a node view that carries no data-type attribute,
      so they are matched by their own (direct-child) checkbox instead. */
   li:not(:has(> label > input[type='checkbox'])) {
-    @apply mb-1 marker:text-red-500;
+    @apply marker:text-accent mb-1;
 
     p {
       @apply mb-0;
@@ -117,7 +144,7 @@
           @apply absolute size-0 opacity-0;
 
           &:checked + span {
-            @apply bg-red-500 before:bg-white;
+            @apply bg-accent before:bg-white;
 
             &::before {
               @apply opacity-100;
@@ -126,7 +153,7 @@
         }
 
         span {
-          @apply block size-4 rounded-md border-[1.5px] border-red-500;
+          @apply border-accent block size-4 rounded-md border-[1.5px];
 
           &::before {
             @apply absolute left-0.5 top-0.5 size-3 opacity-0 content-[''];
@@ -152,19 +179,19 @@
   }
 
   code:not(:where(pre code)) {
-    @apply rounded-md bg-zinc-200 px-[5px] font-mono text-zinc-700;
+    @apply bg-muted text-foreground/80 rounded-md px-[5px] font-mono;
   }
 
   a {
-    @apply cursor-pointer text-red-500 underline;
+    @apply text-accent cursor-pointer underline;
   }
 
   hr {
-    @apply my-4 rounded border border-zinc-300;
+    @apply border-faint my-4 rounded border;
   }
 
   blockquote {
-    @apply mb-2 ml-1.5 mt-2.5 border-l-2 border-red-500 py-1 pl-4;
+    @apply border-accent mb-2 ml-1.5 mt-2.5 border-l-2 py-1 pl-4;
 
     p {
       @apply mb-0;
@@ -172,7 +199,7 @@
   }
 
   pre {
-    @apply hide-scrollbar my-3 mb-2 overflow-x-auto rounded-xl bg-zinc-100 px-4 py-2.5;
+    @apply hide-scrollbar bg-muted my-3 mb-2 overflow-x-auto rounded-xl px-4 py-2.5;
 
     code {
       @apply whitespace-pre-wrap p-0;
@@ -181,10 +208,10 @@
 
   /* Tiptap placeholder */
   p.is-editor-empty:first-child::before {
-    @apply pointer-events-none float-left h-0 text-gray-400 content-[attr(data-placeholder)];
+    @apply text-muted-foreground pointer-events-none float-left h-0 content-[attr(data-placeholder)];
   }
 
   p.is-empty::before {
-    @apply pointer-events-none float-left h-0 text-gray-400 content-[attr(data-placeholder)];
+    @apply text-muted-foreground pointer-events-none float-left h-0 content-[attr(data-placeholder)];
   }
 }

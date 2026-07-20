@@ -242,7 +242,7 @@ function SearchPage() {
   const isFilteredNotesEmpty = filteredNotes?.length === 0;
 
   return (
-    <main className="flex h-screen flex-col bg-white">
+    <main className="bg-background flex h-screen flex-col">
       <Autocomplete.Root
         open
         inline
@@ -256,14 +256,14 @@ function SearchPage() {
       >
         <div
           ref={inputRowRef}
-          className="flex shrink-0 items-center border-b border-zinc-200"
+          className="border-border flex shrink-0 items-center border-b"
         >
           <Autocomplete.Input
             render={
               <Input
                 ref={inputRef}
                 placeholder="Search notes..."
-                className="h-11 rounded-none border-none p-4 text-sm placeholder:text-zinc-400 focus:border-none"
+                className="h-11 rounded-none border-none p-4 text-sm focus:border-none"
                 spellCheck={false}
                 autoComplete="off"
                 autoCorrect="off"
@@ -284,8 +284,8 @@ function SearchPage() {
           <div ref={contentRef}>
             {isFilteredNotesEmpty && (
               <div className="flex flex-col items-center justify-center gap-2 p-4 py-8">
-                <StickyNoteIcon className="h-10 w-10 text-zinc-300" />
-                <Text size="3" className="text-zinc-400">
+                <StickyNoteIcon className="text-faint h-10 w-10" />
+                <Text size="3" className="text-muted-foreground">
                   No notes found
                 </Text>
               </div>
@@ -293,7 +293,7 @@ function SearchPage() {
 
             {!isFilteredNotesEmpty && (
               <div className="flex flex-col pb-2 pt-3">
-                <div className="flex shrink-0 items-center justify-between gap-2 px-4 pb-2 text-zinc-400">
+                <div className="text-muted-foreground flex shrink-0 items-center justify-between gap-2 px-4 pb-2">
                   <Text size="2">Notes</Text>
                   <Text size="2">
                     {notes?.length} Note

@@ -136,7 +136,7 @@ export function MenuBarItems(props: MenuBarItemsProps) {
         size="icon"
         title="Heading"
         data-active={activeHeading !== null}
-        className="h-7 w-auto gap-0 px-1 text-zinc-500 hover:text-zinc-500 data-[active=true]:text-black"
+        className="h-7 w-auto gap-0 px-1 text-muted-foreground hover:text-muted-foreground data-[active=true]:text-foreground"
         onClick={(e) =>
           popupMenu(e, 'heading', activeHeading ? [activeHeading] : [])
         }
@@ -150,7 +150,7 @@ export function MenuBarItems(props: MenuBarItemsProps) {
         size="icon"
         title="Text Style"
         data-active={activeStyles.length > 0}
-        className="h-7 w-auto gap-0 px-1 text-zinc-500 hover:text-zinc-500 data-[active=true]:text-black"
+        className="h-7 w-auto gap-0 px-1 text-muted-foreground hover:text-muted-foreground data-[active=true]:text-foreground"
         onClick={(e) => popupMenu(e, 'style', activeStyles)}
       >
         <ItalicIcon className="h-4 w-4" />
@@ -162,7 +162,7 @@ export function MenuBarItems(props: MenuBarItemsProps) {
         size="icon"
         title="Link"
         data-active={stats.isLink}
-        className="size-7 text-zinc-500 hover:text-zinc-500 data-[active=true]:text-black"
+        className="size-7 text-muted-foreground hover:text-muted-foreground data-[active=true]:text-foreground"
         onClick={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
           invoke('cmd_open_link_window', {
@@ -179,20 +179,20 @@ export function MenuBarItems(props: MenuBarItemsProps) {
         size="icon"
         title="Code"
         data-active={stats.isCode}
-        className="size-7 text-zinc-500 hover:text-zinc-500 data-[active=true]:text-black"
+        className="size-7 text-muted-foreground hover:text-muted-foreground data-[active=true]:text-foreground"
         onClick={() => editor.chain().focus().toggleCode().run()}
       >
         <CodeIcon className="h-4 w-4" />
       </Button>
 
-      <span className="mx-1 h-4 w-px shrink-0 bg-zinc-200" />
+      <span className="bg-border mx-1 h-4 w-px shrink-0" />
 
       <Button
         variant="ghost"
         size="icon"
         title="Code Block"
         data-active={stats.isCodeBlock}
-        className="size-7 text-zinc-500 hover:text-zinc-500 data-[active=true]:text-black"
+        className="size-7 text-muted-foreground hover:text-muted-foreground data-[active=true]:text-foreground"
         onClick={() => editor.chain().focus().toggleCodeBlock().run()}
       >
         <FileCode2Icon className="h-4 w-4" />
@@ -203,20 +203,20 @@ export function MenuBarItems(props: MenuBarItemsProps) {
         size="icon"
         title="Blockquote"
         data-active={stats.isQuote}
-        className="size-7 text-zinc-500 hover:text-zinc-500 data-[active=true]:text-black"
+        className="size-7 text-muted-foreground hover:text-muted-foreground data-[active=true]:text-foreground"
         onClick={() => editor.chain().focus().toggleBlockquote().run()}
       >
         <TextQuoteIcon className="h-4 w-4" />
       </Button>
 
-      <span className="mx-1 h-4 w-px shrink-0 bg-zinc-200" />
+      <span className="bg-border mx-1 h-4 w-px shrink-0" />
 
       <Button
         variant="ghost"
         size="icon"
         title="List"
         data-active={activeList !== null}
-        className="h-7 w-auto gap-0 px-1 text-zinc-500 hover:text-zinc-500 data-[active=true]:text-black"
+        className="h-7 w-auto gap-0 px-1 text-muted-foreground hover:text-muted-foreground data-[active=true]:text-foreground"
         onClick={(e) => popupMenu(e, 'list', activeList ? [activeList] : [])}
       >
         <ListIcon className="h-4 w-4" />

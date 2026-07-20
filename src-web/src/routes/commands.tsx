@@ -162,7 +162,7 @@ function CommandsPage() {
   const isFilteredCommandsEmpty = commandGroups.length === 0;
 
   return (
-    <main className="flex h-screen flex-col bg-white">
+    <main className="bg-background flex h-screen flex-col">
       <Autocomplete.Root
         open
         inline
@@ -176,14 +176,14 @@ function CommandsPage() {
       >
         <div
           ref={inputRowRef}
-          className="flex shrink-0 items-center border-b border-zinc-200"
+          className="border-border flex shrink-0 items-center border-b"
         >
           <Autocomplete.Input
             render={
               <Input
                 ref={inputRef}
                 placeholder="Search for actions..."
-                className="h-11 rounded-none border-none p-4 text-sm placeholder:text-zinc-400 focus:border-none"
+                className="h-11 rounded-none border-none p-4 text-sm focus:border-none"
                 spellCheck={false}
                 autoComplete="off"
                 autoCorrect="off"
@@ -204,8 +204,8 @@ function CommandsPage() {
           <div ref={contentRef}>
             {isFilteredCommandsEmpty && (
               <div className="flex flex-col items-center justify-center gap-2 p-4 py-8">
-                <SearchXIcon className="h-10 w-10 text-zinc-300" />
-                <Text size="3" className="text-zinc-400">
+                <SearchXIcon className="text-faint h-10 w-10" />
+                <Text size="3" className="text-muted-foreground">
                   No actions found
                 </Text>
               </div>
@@ -217,10 +217,10 @@ function CommandsPage() {
                   <Autocomplete.Group
                     key={group.id}
                     items={group.items}
-                    className="flex flex-col border-t border-zinc-100 pb-1 pt-1 first:border-t-0 first:pt-0 last:pb-0"
+                    className="border-muted flex flex-col border-t pb-1 pt-1 first:border-t-0 first:pt-0 last:pb-0"
                   >
                     <Autocomplete.GroupLabel className="px-2 pb-1 pt-1.5">
-                      <Text size="1" className="text-zinc-400">
+                      <Text size="1" className="text-muted-foreground">
                         {group.title}
                       </Text>
                     </Autocomplete.GroupLabel>
@@ -259,9 +259,9 @@ function CommandItem(props: CommandItemProps) {
     <Autocomplete.Item
       value={command}
       onClick={onSelect}
-      className="flex w-full items-center gap-2.5 rounded-md p-2 text-left text-zinc-600 data-[highlighted]:bg-zinc-100 data-[highlighted]:text-zinc-900"
+      className="text-muted-foreground data-[highlighted]:bg-muted data-[highlighted]:text-foreground flex w-full items-center gap-2.5 rounded-md p-2 text-left"
     >
-      <command.icon className="h-4 w-4 shrink-0 text-zinc-400" />
+      <command.icon className="text-muted-foreground h-4 w-4 shrink-0" />
 
       <Text size="2" className="w-full truncate font-medium">
         {commandLabel(command, context)}
@@ -272,7 +272,7 @@ function CommandItem(props: CommandItemProps) {
           {command.shortcut.map((key) => (
             <kbd
               key={key}
-              className="flex h-5 min-w-5 items-center justify-center rounded border border-zinc-200 bg-zinc-50 px-1 font-sans text-xs text-zinc-400"
+              className="border-border bg-muted text-muted-foreground flex h-5 min-w-5 items-center justify-center rounded border px-1 font-sans text-xs"
             >
               {key}
             </kbd>

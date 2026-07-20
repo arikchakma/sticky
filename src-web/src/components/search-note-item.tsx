@@ -22,7 +22,7 @@ export function SearchNoteItem(props: SearchNoteItemProps) {
     <Autocomplete.Item
       value={note}
       onClick={onSelect}
-      className="group relative flex w-full items-center justify-between gap-2 rounded-md p-2 text-left text-zinc-600 data-[highlighted]:bg-zinc-100 data-[highlighted]:text-zinc-900"
+      className="text-muted-foreground data-[highlighted]:bg-muted data-[highlighted]:text-foreground group relative flex w-full items-center justify-between gap-2 rounded-md p-2 text-left"
     >
       <div className="flex flex-col gap-1">
         <Text size="2" className="w-full truncate font-medium">
@@ -30,9 +30,9 @@ export function SearchNoteItem(props: SearchNoteItemProps) {
         </Text>
 
         <div className="flex items-center gap-2">
-          {isActive && <span className="h-1.5 w-1.5 rounded-full bg-red-500" />}
+          {isActive && <span className="bg-accent h-1.5 w-1.5 rounded-full" />}
 
-          <Text className="text-[13px] text-zinc-400">
+          <Text className="text-faint text-[13px]">
             Updated {getRelativeTime(note.updatedAt)}
           </Text>
         </div>
@@ -42,7 +42,7 @@ export function SearchNoteItem(props: SearchNoteItemProps) {
         <Button
           size="icon"
           variant="ghost"
-          className="size-6 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-900 disabled:opacity-50"
+          className="text-muted-foreground hover:bg-border hover:text-foreground size-6 disabled:opacity-50"
           disabled={isDeleting}
           // A native confirm dialog would blur the panel and hide it
           // mid-prompt, so deletes apply immediately.

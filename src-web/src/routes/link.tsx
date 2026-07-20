@@ -115,7 +115,7 @@ function LinkPage() {
   }, []);
 
   return (
-    <main className="h-screen bg-white caret-red-500">
+    <main className="bg-background caret-accent h-screen">
       <form className="relative h-full" onSubmit={handleSubmit}>
         <Input
           type="url"
@@ -136,7 +136,7 @@ function LinkPage() {
               type="button"
               variant="ghost"
               size="icon"
-              className="size-7 text-zinc-500 hover:text-black"
+              className="text-muted-foreground hover:text-foreground size-7"
               onClick={handleRemove}
             >
               <XIcon className="h-4 w-4" />
@@ -148,7 +148,7 @@ function LinkPage() {
               type="submit"
               variant="ghost"
               size="icon"
-              className="size-7 text-zinc-500 hover:text-black"
+              className="text-muted-foreground hover:text-foreground size-7"
             >
               <ArrowRightIcon className="h-4 w-4" />
             </Button>

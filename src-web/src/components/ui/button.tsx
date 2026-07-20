@@ -4,18 +4,19 @@ import * as React from 'react';
 import { cn } from '~/lib/classname';
 
 const buttonVariants = cva(
-  'inline-flex w-full items-center justify-center gap-2 rounded-lg border text-sm font-medium outline-none focus-visible:border-zinc-500 disabled:cursor-not-allowed disabled:opacity-60 [&_svg]:pointer-events-none [&_svg]:shrink-0',
+  'inline-flex w-full items-center justify-center gap-2 rounded-lg border text-sm font-medium outline-none focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-60 [&_svg]:pointer-events-none [&_svg]:shrink-0',
   {
     variants: {
       variant: {
-        default: 'bg-black hover:opacity-80 border-black text-white',
+        default:
+          'bg-foreground hover:opacity-80 border-foreground text-background',
         destructive: 'bg-red-500 text-white border-red-400 hover:bg-red-500/90',
         outline:
-          'border border-zinc-200 bg-white hover:bg-zinc-100 hover:text-black',
+          'border border-border bg-background hover:bg-muted hover:text-foreground',
         secondary:
-          'bg-zinc-100 border-zinc-200 text-black hover:bg-zinc-200 hover:text-black',
+          'bg-muted border-border text-foreground hover:bg-border hover:text-foreground',
         ghost:
-          'hover:bg-zinc-100 border-transparent hover:text-black focus-visible:bg-zinc-100 focus-visible:text-black',
+          'hover:bg-muted border-transparent hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground',
         link: 'text-blue-500 underline underline-offset-4 hover:text-blue-600 hover:no-underline focus:no-underline border-none rounded-none',
       },
       size: {
