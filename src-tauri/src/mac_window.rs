@@ -51,6 +51,9 @@ const TRAFFIC_LIGHT_SPACING: f64 = 20.0;
 const CLOSE_RED: (f64, f64, f64) = (1.0, 0.373, 0.341);
 // Decorative minimize/zoom, and all buttons when unfocused (#B8B8BD).
 const DIMMED_GREY: (f64, f64, f64) = (0.722, 0.722, 0.741);
+// The same, toned down so the circles don't glare on dark windows
+// (#4F4F53).
+const DIMMED_GREY_DARK: (f64, f64, f64) = (0.31, 0.31, 0.325);
 
 // The glyphs (x, -, +) shown inside the circles on hover.
 const GLYPH_INSET: f64 = 4.5;
@@ -401,6 +404,25 @@ pub fn anchor_panel_at<R: Runtime>(
     }
 }
 
+/// Whether the window currently renders with a dark appearance.
+fn is_dark_appearance(ns_window: cocoa::base::id) -> bool {
+    use cocoa::base::{nil, BOOL, YES};
+    use cocoa::foundation::NSString;
+
+    #[allow(unexpected_cfgs)]
+    unsafe {
+        let appearance: cocoa::base::id =
+            msg_send![ns_window, effectiveAppearance];
+        let name: cocoa::base::id = msg_send![appearance, name];
+        // All dark appearance names ("NSAppearanceNameDarkAqua",
+        // "NSAppearanceNameVibrantDark", ...) carry the marker.
+        let marker = NSString::alloc(nil).init_str("Dark");
+        let is_dark: BOOL = msg_send![name, containsString: marker];
+        let _: () = msg_send![marker, release];
+        is_dark == YES
+    }
+}
+
 fn position_traffic_lights(
     ns_window_handle: UnsafeWindowHandle,
     x: f64,
@@ -446,8 +468,13 @@ fn position_traffic_lights(
             msg_send![title_bar_container_view, setFrame: title_bar_rect];
 
         let is_key_window: BOOL = msg_send![ns_window, isKeyWindow];
+        let dimmed_grey = if is_dark_appearance(ns_window) {
+            DIMMED_GREY_DARK
+        } else {
+            DIMMED_GREY
+        };
         let close_rgb =
-            if is_key_window == YES { CLOSE_RED } else { DIMMED_GREY };
+            if is_key_window == YES { CLOSE_RED } else { dimmed_grey };
 
         let window_buttons = vec![close, miniaturize, zoom];
         let space_between = TRAFFIC_LIGHT_SPACING;
@@ -585,7 +612,7 @@ fn position_traffic_lights(
                 let _: () = msg_send![circle, setFrame: circle_rect];
             }
 
-            let (r, g, b) = if i == 0 { close_rgb } else { DIMMED_GREY };
+            let (r, g, b) = if i == 0 { close_rgb } else { dimmed_grey };
             let color: id = msg_send![
                 class!(NSColor),
                 colorWithSRGBRed: r green: g blue: b alpha: 1.0f64
@@ -806,10 +833,22 @@ pub fn setup_traffic_light_positioner<R: Runtime>(window: &WebviewWindow<R>) {
             on_window_did_fail_to_enter_full_screen,
             windowDidFailToEnterFullScreen
         );
-        forward_to_super!(
-            on_effective_appearance_did_change,
-            effectiveAppearanceDidChange
-        );
+        // Repaint the traffic lights in the colors of the new appearance.
+        extern "C" fn on_effective_appearance_did_change<R: Runtime>(
+            this: &Object,
+            _cmd: Sel,
+            notification: id,
+        ) {
+            unsafe {
+                reposition_from_state::<R>(this);
+
+                let super_del: id = *this.get_ivar("super_delegate");
+                let _: () = msg_send![
+                    super_del,
+                    effectiveAppearanceDidChange: notification
+                ];
+            }
+        }
         forward_to_super!(
             on_effective_appearance_did_changed_on_main_thread,
             effectiveAppearanceDidChangedOnMainThread
@@ -889,7 +928,7 @@ pub fn setup_traffic_light_positioner<R: Runtime>(window: &WebviewWindow<R>) {
             (windowDidExitFullScreen:) => on_window_did_exit_full_screen::<R> as extern "C" fn(&Object, Sel, id),
             (windowWillExitFullScreen:) => on_window_will_exit_full_screen::<R> as extern "C" fn(&Object, Sel, id),
             (windowDidFailToEnterFullScreen:) => on_window_did_fail_to_enter_full_screen as extern "C" fn(&Object, Sel, id),
-            (effectiveAppearanceDidChange:) => on_effective_appearance_did_change as extern "C" fn(&Object, Sel, id),
+            (effectiveAppearanceDidChange:) => on_effective_appearance_did_change::<R> as extern "C" fn(&Object, Sel, id),
             (effectiveAppearanceDidChangedOnMainThread:) => on_effective_appearance_did_changed_on_main_thread as extern "C" fn(&Object, Sel, id)
         });
 
