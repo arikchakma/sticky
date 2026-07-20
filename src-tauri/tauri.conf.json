@@ -15,7 +15,16 @@
       "csp": null
     }
   },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDVCMDNGNjUzQ0QyMzg3QjcKUldTM2h5UE5VL1lEVzk5MnZET0k5T2JxdXVyRGJtay9ZN1J1dVRDQnNTbDZmSXprczRid0QrcEoK",
+      "endpoints": [
+        "https://github.com/arikchakma/sticky/releases/latest/download/latest.json"
+      ]
+    }
+  },
   "bundle": {
+    "createUpdaterArtifacts": true,
     "publisher": "Sticky",
     "license": "MIT",
     "category": "Productivity",

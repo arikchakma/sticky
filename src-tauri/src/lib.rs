@@ -20,6 +20,7 @@ use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
 
 #[cfg(target_os = "macos")]
 mod mac_window;
+mod update;
 mod window;
 #[cfg(target_os = "macos")]
 mod window_menu;
@@ -441,6 +442,8 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .plugin(sticky_models::plugin::init())
         // A note window that has finished loading is about to need its
         // search panel and command palette; build them ahead of the
@@ -506,6 +509,7 @@ pub fn run() {
             match event {
                 RunEvent::Ready => {
                     debug_log!("Application is ready, creating main window");
+                    update::check_in_background(app_handle);
                     let handle = app_handle.clone();
                     let window =
                         window::create_main_window(&handle, "/", None, None);
