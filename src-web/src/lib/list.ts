@@ -1,13 +1,35 @@
-import { BulletList, OrderedList, TaskList } from '@tiptap/extension-list';
+import {
+  BulletList,
+  ListItem,
+  OrderedList,
+  TaskItem,
+  TaskList,
+} from '@tiptap/extension-list';
+import type { EditorState } from '@tiptap/pm/state';
 import type { Editor } from '@tiptap/react';
 
 const LIST_NAMES = [BulletList.name, OrderedList.name, TaskList.name];
+const LIST_ITEM_NAMES = [ListItem.name, TaskItem.name];
+
+export const findListItemAtSelection = (state: EditorState) => {
+  const { $from } = state.selection;
+
+  for (let depth = $from.depth; depth > 0; depth -= 1) {
+    const node = $from.node(depth);
+
+    if (LIST_ITEM_NAMES.includes(node.type.name)) {
+      return { node, depth };
+    }
+  }
+
+  return null;
+};
 
 // Blank lines between markdown list items parse into separate adjacent
-// lists, so the first item of each fragment has no sibling to sink under
-// and sinkListItem rejects it. Move such an item into the last item of
-// the list directly before it instead.
-export const sinkListItemIntoListBefore = (
+// lists, so the first item of each fragment has no sibling above it and
+// sinkListItem rejects it. Nest such an item under the last item of the
+// previous list instead.
+export const indentListItem = (
   editor: Editor,
   itemDepth: number
 ) => {

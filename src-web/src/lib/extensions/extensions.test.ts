@@ -128,6 +128,28 @@ function pressTab(editor: Editor, shift = false) {
   );
 }
 
+function pressBackspace(editor: Editor) {
+  editor.view.dom.dispatchEvent(
+    new KeyboardEvent('keydown', {
+      key: 'Backspace',
+      code: 'Backspace',
+      bubbles: true,
+      cancelable: true,
+    })
+  );
+}
+
+function caretAtStartOf(editor: Editor, text: string) {
+  let found = -1;
+  editor.state.doc.descendants((node, pos) => {
+    if (node.isText && node.text?.startsWith(text)) {
+      found = pos;
+    }
+  });
+  expect(found).toBeGreaterThan(-1);
+  editor.commands.setTextSelection(found);
+}
+
 function selectText(editor: Editor, text: string) {
   let found = -1;
   editor.state.doc.descendants((node, pos) => {
@@ -253,6 +275,32 @@ describe('editor extensions', () => {
       '- [ ] It autogrows with content.\n  1. Howdy'
     );
     expect(editor.state.selection.$from.parent.textContent).toBe('Howdy');
+  });
+
+  it('Backspace at the start of a list nested in a task item lifts only the list item', () => {
+    const editor = createMarkdownEditor(
+      '- [ ] It stays always on top of the file\n  - Hello World!!\n    - Nobody\n'
+    );
+    caretAtStartOf(editor, 'Hello World!!');
+    pressBackspace(editor);
+
+    expect(editor.getMarkdown()).toBe(
+      '- [ ] It stays always on top of the file\n\n  Hello World!!\n  - Nobody'
+    );
+  });
+
+  it('Backspace on a later paragraph of a task item merges it into the previous one', () => {
+    const editor = createMarkdownEditor(
+      '- [ ] It stays always on top of the file\n  - Hello World!!\n    - Nobody\n'
+    );
+    caretAtStartOf(editor, 'Hello World!!');
+    pressBackspace(editor);
+    caretAtStartOf(editor, 'Hello World!!');
+    pressBackspace(editor);
+
+    expect(editor.getMarkdown()).toBe(
+      '- [ ] It stays always on top of the fileHello World!!\n  - Nobody'
+    );
   });
 
   it('Shift-Tab lifts a nested task item back out', () => {

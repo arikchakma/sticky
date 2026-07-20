@@ -1,14 +1,14 @@
 import { CharacterCount } from '@tiptap/extensions';
 import { Markdown } from '@tiptap/markdown';
 import { CodeBlockExtension } from './code-block';
-import { ListIndentKeymapExtension } from './indent';
+import { ListKeymapExtension } from './keymap';
 import { ListKitExtension } from './list-kit';
 import { PlaceholderExtension } from './placeholder';
 import { StarterKitExtension } from './starter-kit';
 import { UnderlineExtension } from './underline';
 
 export const editorExtensions = [
-  ListIndentKeymapExtension,
+  ListKeymapExtension,
   StarterKitExtension,
   UnderlineExtension,
   Markdown,
