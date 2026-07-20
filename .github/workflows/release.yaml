@@ -22,7 +22,7 @@ jobs:
             arch: 'x64'
 
     runs-on: ${{ matrix.platform }}
-    timeout-minutes: 40
+    timeout-minutes: 90
 
     steps:
       - name: checkout Sticky
@@ -47,8 +47,8 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             src-tauri/target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
+          key: ${{ runner.os }}-${{ matrix.arch }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-${{ matrix.arch }}-cargo-
 
       # TODO: add this back in when we support linux
       # - name: install dependencies (ubuntu only)
