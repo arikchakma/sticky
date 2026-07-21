@@ -1,5 +1,9 @@
 import { Autocomplete } from '@base-ui/react/autocomplete';
-import { SEARCH_WINDOW_HEIGHT, type Note } from '@sticky/models';
+import {
+  SEARCH_WINDOW_HEIGHT,
+  type Note,
+  type NoteSearchHit,
+} from '@sticky/models';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { invoke } from '@tauri-apps/api/core';
@@ -15,12 +19,10 @@ import {
   useRef,
   useState,
 } from 'react';
-import { SearchNoteItem, type SearchNote } from '~/components/search-note-item';
+import { SearchNoteItem } from '~/components/search-note-item';
 import { Input } from '~/components/ui/input';
 import { Text } from '~/components/ui/text';
-import { getTitleFromContent } from '~/lib/content';
-import { markdownToTiptapJson } from '~/lib/markdown';
-import { listNotesOptions } from '~/queries/notes';
+import { searchNotesOptions } from '~/queries/notes';
 
 type SearchParams = {
   parent: string;
@@ -49,36 +51,35 @@ function SearchPage() {
 
   const queryClient = useQueryClient();
 
-  const { data: notes, isLoading: isLoadingNotes } = useQuery({
-    ...listNotesOptions(),
-    select: (data) => {
-      return data
-        .map((note) => {
-          const doc = markdownToTiptapJson(note.content);
-          const title = getTitleFromContent(doc) || 'Untitled';
-          return { ...note, title };
-        })
-        .sort((a, b) => {
-          if (a.id === activeNoteId) {
-            return -1;
-          }
+  // Matching and ranking happen in the backend, over titles and note
+  // bodies; an empty query lists every note, newest first.
+  const { data: hits, isLoading: isLoadingNotes } = useQuery(
+    searchNotesOptions(search)
+  );
 
-          if (b.id === activeNoteId) {
-            return 1;
-          }
+  const terms = useMemo(() => {
+    return search.split(/\s+/).filter(Boolean);
+  }, [search]);
 
-          return 0;
-        });
-    },
-  });
+  // Search results keep the backend's ranking; the plain list floats
+  // the active note to the top.
+  const orderedHits = useMemo(() => {
+    if (!hits || terms.length > 0) {
+      return hits;
+    }
 
-  // Filtered here rather than by the Autocomplete so the window resize
-  // below can key off the visible list.
-  const filteredNotes = useMemo(() => {
-    return notes?.filter((note) => {
-      return note.title.toLowerCase().includes(search.toLowerCase());
+    return [...hits].sort((a, b) => {
+      if (a.note.id === activeNoteId) {
+        return -1;
+      }
+
+      if (b.note.id === activeNoteId) {
+        return 1;
+      }
+
+      return 0;
     });
-  }, [notes, search]);
+  }, [hits, terms, activeNoteId]);
 
   // Closing is unified with focus: giving the parent window focus back
   // makes the panel lose it, and the native side hides it on blur.
@@ -106,15 +107,16 @@ function SearchPage() {
       });
     },
     onSettled: () => {
-      queryClient.invalidateQueries(listNotesOptions());
+      // Prefix-matches every ['notes', ...] key, searches included.
+      queryClient.invalidateQueries({ queryKey: ['notes'] });
     },
     onMutate: async (noteId) => {
-      const queryKey = listNotesOptions().queryKey;
+      const queryKey = searchNotesOptions(search).queryKey;
       await queryClient.cancelQueries({ queryKey });
 
-      const previousNotes = queryClient.getQueryData(queryKey);
-      queryClient.setQueryData(queryKey, (old: Note[] | undefined) => {
-        return old?.filter((note) => note.id !== noteId);
+      const previousHits = queryClient.getQueryData(queryKey);
+      queryClient.setQueryData(queryKey, (old: NoteSearchHit[] | undefined) => {
+        return old?.filter((hit) => hit.note.id !== noteId);
       });
 
       if (noteId === activeNoteId) {
@@ -122,13 +124,12 @@ function SearchPage() {
         await dismiss();
       }
 
-      return { previousNotes };
+      return { previousHits, queryKey };
     },
     onError: (err, _, context) => {
-      queryClient.setQueryData(
-        listNotesOptions().queryKey,
-        context?.previousNotes
-      );
+      if (context) {
+        queryClient.setQueryData(context.queryKey, context.previousHits);
+      }
 
       invoke('cmd_show_toast', {
         message: err?.message || 'Failed to delete note',
@@ -149,7 +150,7 @@ function SearchPage() {
       (event) => {
         setSearch('');
         setActiveNoteId(event.payload ?? undefined);
-        queryClient.invalidateQueries(listNotesOptions());
+        queryClient.invalidateQueries({ queryKey: ['notes'] });
         inputRef.current?.focus();
       }
     );
@@ -163,7 +164,7 @@ function SearchPage() {
   // `notes:changed`; keep the list fresh while the panel is open.
   useEffect(() => {
     const unlisten = listen('notes:changed', () => {
-      queryClient.invalidateQueries(listNotesOptions());
+      queryClient.invalidateQueries({ queryKey: ['notes'] });
     });
 
     return () => {
@@ -222,7 +223,7 @@ function SearchPage() {
     };
 
     fitAndReveal();
-  }, [filteredNotes, isLoadingNotes]);
+  }, [orderedHits, isLoadingNotes]);
 
   // Workaround for https://github.com/mui/base-ui/issues/4002: WebKit
   // synthesizes mousemove events when the list scrolls under a
@@ -239,7 +240,8 @@ function SearchPage() {
     }
   };
 
-  const isFilteredNotesEmpty = filteredNotes?.length === 0;
+  const isEmpty = orderedHits?.length === 0;
+  const hitCount = orderedHits?.length ?? 0;
 
   return (
     <main className="bg-background flex h-screen flex-col">
@@ -248,7 +250,7 @@ function SearchPage() {
         inline
         mode="none"
         filter={null}
-        items={filteredNotes ?? []}
+        items={orderedHits ?? []}
         autoHighlight="always"
         keepHighlight
         value={search}
@@ -282,7 +284,7 @@ function SearchPage() {
           onMouseMoveCapture={swallowSyntheticMouseMove}
         >
           <div ref={contentRef}>
-            {isFilteredNotesEmpty && (
+            {isEmpty && (
               <div className="flex flex-col items-center justify-center gap-2 p-4 py-8">
                 <StickyNoteIcon className="text-faint h-10 w-10" />
                 <Text size="3" className="text-muted-foreground">
@@ -291,25 +293,26 @@ function SearchPage() {
               </div>
             )}
 
-            {!isFilteredNotesEmpty && (
+            {!isEmpty && (
               <div className="flex flex-col pb-2 pt-3">
                 <div className="text-muted-foreground flex shrink-0 items-center justify-between gap-2 px-4 pb-2">
                   <Text size="2">Notes</Text>
                   <Text size="2">
-                    {notes?.length} Note
-                    {(notes?.length ?? 0) > 1 ? 's' : ''}
+                    {hitCount} Note
+                    {hitCount > 1 ? 's' : ''}
                   </Text>
                 </div>
 
                 <Autocomplete.List className="flex flex-col px-2">
-                  {(note: SearchNote) => (
+                  {(hit: NoteSearchHit) => (
                     <SearchNoteItem
-                      key={note.id}
-                      note={note}
-                      isActive={note.id === activeNoteId}
+                      key={hit.note.id}
+                      hit={hit}
+                      terms={terms}
+                      isActive={hit.note.id === activeNoteId}
                       isDeleting={isDeleting}
-                      onSelect={() => selectNote(note)}
-                      onDelete={() => deleteNote(note.id)}
+                      onSelect={() => selectNote(hit.note)}
+                      onDelete={() => deleteNote(hit.note.id)}
                     />
                   )}
                 </Autocomplete.List>

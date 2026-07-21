@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::error::Result;
-use crate::models::{ModelType, Note};
+use crate::models::{ModelType, Note, NoteSearchHit};
 use crate::store::NotesStore;
 use nanoid::nanoid;
 use tauri::{AppHandle, Manager, Runtime};
@@ -11,6 +11,15 @@ pub async fn list_notes<R: Runtime>(
     app_handle: &AppHandle<R>,
 ) -> Result<Vec<Note>> {
     app_handle.state::<NotesStore>().list()
+}
+
+/// Search notes by title and body, best matches first. An empty
+/// query matches every note, newest first.
+pub async fn search_notes<R: Runtime>(
+    app_handle: &AppHandle<R>,
+    query: &str,
+) -> Result<Vec<NoteSearchHit>> {
+    app_handle.state::<NotesStore>().search(query)
 }
 
 /// Read a single note by id.
