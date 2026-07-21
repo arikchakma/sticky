@@ -206,6 +206,22 @@
     }
   }
 
+  /* Find-in-note (Cmd+F) match decorations */
+  .find-match {
+    @apply rounded-[2px];
+    background: light-dark(
+      --alpha(var(--color-yellow-400) / 40%),
+      --alpha(var(--color-yellow-400) / 25%)
+    );
+  }
+
+  .find-match-active {
+    background: light-dark(
+      var(--color-yellow-400),
+      --alpha(var(--color-yellow-500) / 60%)
+    );
+  }
+
   /* Tiptap placeholder */
   p.is-editor-empty:first-child::before {
     @apply text-muted-foreground pointer-events-none float-left h-0 content-[attr(data-placeholder)];

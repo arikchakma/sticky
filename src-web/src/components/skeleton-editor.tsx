@@ -1,7 +1,9 @@
+import { useHotkey } from '@tanstack/react-hotkeys';
 import { useQueryClient } from '@tanstack/react-query';
 import { EditorContent, useEditor } from '@tiptap/react';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Divider } from '~/components/divider';
+import { FindBar } from '~/components/find-bar';
 import { Header } from '~/components/header';
 import { MenuBar } from '~/components/menu-bar/menu-bar';
 import { useNoteActions } from '~/hooks/use-note-actions';
@@ -52,6 +54,14 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
 
   const { flush } = useNoteAutosave(editor, currentNoteId, isDirtyRef);
 
+  const [isFindOpen, setIsFindOpen] = useState(false);
+  const openFind = useCallback(() => setIsFindOpen(true), []);
+  const closeFind = useCallback(() => setIsFindOpen(false), []);
+
+  // The bar itself handles Mod+F while it is already open, by
+  // refocusing its input.
+  useHotkey('Mod+F', openFind);
+
   const { createNote, browseNotes } = useNoteActions({
     editor,
     noteId: currentNoteId,
@@ -60,6 +70,7 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
     fitWindow,
     toggleAutoSize,
     isAutoSizing,
+    openFind,
   });
 
   const queryClient = useQueryClient();
@@ -127,6 +138,8 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
         onDoubleClick={fitOrSnapWindow}
         onBrowse={browseNotes}
       />
+
+      {isFindOpen && <FindBar editor={editor} onClose={closeFind} />}
 
       <div className="mt-[var(--window-menu-height)] flex h-[calc(100vh-var(--window-menu-height))] flex-col">
         <Divider
