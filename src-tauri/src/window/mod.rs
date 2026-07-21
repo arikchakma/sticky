@@ -219,6 +219,14 @@ pub(crate) fn create_window<R: Runtime>(
                 "hacked_quit" => {
                     // Cmd+Q on macOS doesn't trigger `CloseRequested` so we use a custom Quit menu
                     // and trigger close() for each window.
+                    //
+                    // The flag lets the exit through once the last
+                    // window is gone; without it the app would stay
+                    // alive behind the tray icon.
+                    use std::sync::atomic::Ordering;
+                    w.state::<crate::AppState>()
+                        .quitting
+                        .store(true, Ordering::Relaxed);
                     w.webview_windows().iter().for_each(|(_, w)| {
                         debug_log!("Closing window {}", w.label());
                         let _ = w.close();
