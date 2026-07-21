@@ -90,10 +90,10 @@ async fn cmd_header_mouse_down(window: WebviewWindow) -> Result<bool, String> {
     Ok(false)
 }
 
-// Whether the left mouse button is currently pressed. The window
-// autosize logic uses it to tell a user's edge drag from resize events
-// echoing its own programmatic resizes: only the drag holds the
-// button.
+/// Whether the left mouse button is currently pressed. The window
+/// autosize logic uses it to tell a user's edge drag from resize events
+/// echoing its own programmatic resizes: only the drag holds the
+/// button.
 #[tauri::command]
 async fn cmd_is_left_mouse_down() -> bool {
     #[cfg(target_os = "macos")]

@@ -156,7 +156,7 @@ fn open_note(app: &AppHandle, note_id: &str) {
 }
 
 /// Hide every note window when any is visible; show them all
-/// otherwise. With no window open at all, open the most recent note.
+/// otherwise. With no window open, open the most recent note.
 fn toggle_notes(app: &AppHandle) {
     let windows: Vec<_> = app
         .webview_windows()
@@ -182,7 +182,7 @@ fn toggle_notes(app: &AppHandle) {
     }
 }
 
-/// Quit for real: window state is saved like the Cmd+Q path, and the
+/// Quit the app. Saves window state like the Cmd+Q path, and the
 /// explicit exit code bypasses the keep-alive in `run`.
 fn quit(app: &AppHandle) {
     if let Err(e) = app.save_window_state(StateFlags::all()) {

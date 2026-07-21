@@ -10,16 +10,12 @@ type FindBarProps = {
   onClose: () => void;
 };
 
-// The decorations update synchronously with the command dispatch, so
-// the active match is already in the DOM by the time this runs.
 function scrollToActiveMatch(editor: Editor) {
   editor.view.dom
     .querySelector('.find-match-active')
     ?.scrollIntoView({ block: 'center' });
 }
 
-// The floating find bar (Cmd+F). It owns keyboard focus while open;
-// matches live in the find extension's storage.
 export function FindBar(props: FindBarProps) {
   const { editor, onClose } = props;
 
@@ -34,8 +30,6 @@ export function FindBar(props: FindBarProps) {
     }),
   });
 
-  // Opening seeds the query with the editor selection, like native
-  // macOS find; closing clears every highlight.
   useEffect(() => {
     const { state } = editor;
     const selection = state.doc.textBetween(
@@ -54,8 +48,6 @@ export function FindBar(props: FindBarProps) {
     input?.select();
 
     return () => {
-      // The bar can unmount together with the whole editor, e.g. when
-      // the route swaps to another note.
       if (!editor.isDestroyed) {
         editor.commands.clearFind();
       }
@@ -63,7 +55,6 @@ export function FindBar(props: FindBarProps) {
   }, [editor]);
 
   const close = useCallback(() => {
-    // Leave the cursor on the match the user navigated to.
     const { matches, activeIndex } = editor.storage.find;
     const active = matches[activeIndex];
     if (active) {
@@ -88,8 +79,6 @@ export function FindBar(props: FindBarProps) {
     [editor]
   );
 
-  // Escape, Cmd+G, and a repeated Cmd+F work from anywhere in the
-  // window, including when focus is back in the editor.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -154,7 +143,6 @@ export function FindBar(props: FindBarProps) {
         variant="ghost"
         className="text-muted-foreground hover:text-foreground size-6"
         disabled={matchCount === 0}
-        // Keep focus in the input so Enter keeps navigating.
         onMouseDown={(e) => e.preventDefault()}
         onClick={() => step(-1)}
       >
