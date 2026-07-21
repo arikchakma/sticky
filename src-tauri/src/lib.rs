@@ -462,11 +462,13 @@ pub fn run() {
             tauri_plugin_window_state::Builder::new()
                 .with_state_flags(StateFlags::all() - StateFlags::VISIBLE)
                 .skip_initial_state(&format!("{MAIN_WINDOW_PREFIX}0"))
-                // Utility windows (like the search panel) are positioned
-                // by the app; restoring a saved state would override it.
-                .with_filter(|label| {
-                    !label.starts_with(window::OTHER_WINDOW_PREFIX)
-                })
+                // Only the primary window persists its geometry. Every
+                // other note window is transient: its `main_N` label is a
+                // recycled slot, not a note identity, so restoring by it
+                // would open new notes at some previous window's size.
+                // They open at their creation size and let autosize grow
+                // to fit the content instead.
+                .with_filter(|label| label == format!("{MAIN_WINDOW_PREFIX}0"))
                 .build(),
         )
         .plugin(tauri_plugin_dialog::init())
