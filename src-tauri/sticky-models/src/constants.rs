@@ -1,4 +1,4 @@
-//! Window sizing constants shared with the frontend.
+//! Constants shared with the frontend.
 //!
 //! Like the ts-rs models, the constants are exported to TypeScript by
 //! the test suite: `cargo test` regenerates `bindings/gen_constants.ts`
@@ -25,6 +25,9 @@ shared_constants! {
     /// Maximum height of the floating command palette; the frontend
     /// shrinks the window to fit its content.
     pub const COMMAND_WINDOW_HEIGHT: f64 = 480.0;
+    /// Longest note display title, in characters; both the search
+    /// results and the header title clamp to it.
+    pub const MAX_TITLE_LEN: f64 = 100.0;
 }
 
 #[cfg(test)]

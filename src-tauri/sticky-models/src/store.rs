@@ -12,15 +12,13 @@ use log::warn;
 use sticky_matter::Document;
 use tempfile::NamedTempFile;
 
+use crate::constants::MAX_TITLE_LEN;
 use crate::error::{Error, Result};
 use crate::models::{ModelType, Note, NoteSearchHit};
 use crate::queries::generate_model_id;
 
 /// The longest filename slug derived from a note's first line.
 const MAX_SLUG_LEN: usize = 60;
-
-/// The longest display title derived from a note's first line.
-const MAX_TITLE_LEN: usize = 100;
 
 /// How many characters of a snippet may precede its first match.
 const SNIPPET_CONTEXT: usize = 24;
@@ -469,7 +467,8 @@ fn cache_entry(path: &Path, note: Note) -> Option<CachedNote> {
 pub fn note_title(body: &str) -> String {
     let line = body.lines().find(|l| !l.trim().is_empty()).unwrap_or("");
     let line = strip_inline_markers(strip_line_markers(line));
-    let title: String = line.trim().chars().take(MAX_TITLE_LEN).collect();
+    let title: String =
+        line.trim().chars().take(MAX_TITLE_LEN as usize).collect();
     if title.is_empty() {
         "Untitled".to_string()
     } else {

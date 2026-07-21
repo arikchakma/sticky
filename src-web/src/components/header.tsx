@@ -7,6 +7,7 @@ import { Button } from './ui/button';
 export const HEADER_ID = 'main-header';
 
 type HeaderProps = {
+  title: string;
   onNewWindow: () => void;
   onBrowse: () => void;
   onDoubleClick: () => void;
@@ -16,7 +17,8 @@ export const Header = forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & HeaderProps
 >((props, ref) => {
-  const { className, onNewWindow, onBrowse, onDoubleClick, ...rest } = props;
+  const { className, title, onNewWindow, onBrowse, onDoubleClick, ...rest } =
+    props;
 
   return (
     <header
@@ -56,6 +58,10 @@ export const Header = forwardRef<
         id={HEADER_ID}
       >
         <div className="pointer-events-none w-[70px] shrink-0" />
+
+        <span className="window-title text-muted-foreground pointer-events-none absolute left-1/2 top-1/2 max-w-[60%] -translate-x-1/2 -translate-y-1/2 truncate text-sm font-medium">
+          {title}
+        </span>
 
         <div className="window-chrome flex items-center gap-2">
           <Button

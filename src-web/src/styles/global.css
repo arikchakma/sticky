@@ -47,6 +47,17 @@ html.window-hovered .window-chrome {
   opacity: 1;
 }
 
+/* The note title always sits in the header, dimmed while the mouse is
+   away and brightening as the chrome fades in on hover. */
+.window-title {
+  opacity: 0.45;
+  transition: opacity 150ms ease;
+}
+
+html.window-hovered .window-title {
+  opacity: 1;
+}
+
 :not(iframe) {
   &::-webkit-scrollbar,
   &::-webkit-scrollbar-corner {

@@ -9,6 +9,7 @@ import { MenuBar } from '~/components/menu-bar/menu-bar';
 import { useNoteActions } from '~/hooks/use-note-actions';
 import { useNoteAutosave } from '~/hooks/use-note-autosave';
 import { useNoteSync } from '~/hooks/use-note-sync';
+import { useNoteTitle } from '~/hooks/use-note-title';
 import { useOnFocusChanged } from '~/hooks/use-on-focus-changed';
 import { useWindowAutoSize } from '~/hooks/use-window-autosize';
 import { useWindowReveal } from '~/hooks/use-window-reveal';
@@ -73,6 +74,8 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
     openFind,
   });
 
+  const title = useNoteTitle(editor);
+
   const queryClient = useQueryClient();
   useOnFocusChanged(() => {
     queryClient.invalidateQueries(listNotesOptions());
@@ -134,6 +137,7 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
   return (
     <main>
       <Header
+        title={title}
         onNewWindow={createNote}
         onDoubleClick={fitOrSnapWindow}
         onBrowse={browseNotes}
