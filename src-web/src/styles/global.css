@@ -20,6 +20,7 @@
   --color-border: light-dark(var(--color-zinc-200), var(--color-zinc-800));
   --color-ring: var(--color-zinc-500);
   --color-accent: light-dark(var(--color-red-500), var(--color-red-400));
+  --color-toast: light-dark(var(--color-black), var(--color-zinc-800));
   --color-selection: light-dark(
     --alpha(var(--color-red-200) / 70%),
     --alpha(var(--color-red-500) / 30%)
