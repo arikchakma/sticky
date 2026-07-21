@@ -58,7 +58,7 @@
   h1,
   h2,
   h3 {
-    @apply font-bold tracking-[-0.01em];
+    @apply font-medium tracking-[-0.01em];
   }
 
   h1 {
