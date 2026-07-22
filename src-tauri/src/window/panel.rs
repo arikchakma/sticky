@@ -2,6 +2,15 @@
 
 use super::*;
 
+/// Distance between a parent window's top edge and a panel dropped
+/// below it. Shared so the search and command panels drop from the
+/// same spot.
+pub const PANEL_TOP_OFFSET: f64 = 69.5;
+
+/// Horizontal inset from the parent window's edges. Shared so both
+/// panels are the same width relative to their parent.
+pub const PANEL_INSET: f64 = 16.0;
+
 /// Grace period after a panel was hidden by losing focus.
 ///
 /// Clicking the toggle button while a panel is open blurs the panel
