@@ -183,7 +183,7 @@
   }
 
   a {
-    @apply text-accent cursor-pointer underline;
+    @apply text-accent cursor-pointer break-all underline;
   }
 
   hr {
