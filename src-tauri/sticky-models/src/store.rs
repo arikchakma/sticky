@@ -5,18 +5,26 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
+use std::time::SystemTime;
 
 use chrono::{DateTime, SecondsFormat, Utc};
 use log::warn;
 use sticky_matter::Document;
 use tempfile::NamedTempFile;
 
+use crate::constants::MAX_TITLE_LEN;
 use crate::error::{Error, Result};
-use crate::models::{ModelType, Note};
+use crate::models::{ModelType, Note, NoteSearchHit};
 use crate::queries::generate_model_id;
 
 /// The longest filename slug derived from a note's first line.
 const MAX_SLUG_LEN: usize = 60;
+
+/// How many characters of a snippet may precede its first match.
+const SNIPPET_CONTEXT: usize = 24;
+
+/// The longest search snippet, in characters.
+const SNIPPET_LEN: usize = 140;
 
 /// The frontmatter fields the store owns; anything else in a note's
 /// header belongs to external tools and passes through untouched.
@@ -42,6 +50,18 @@ pub struct NotesStore {
     /// bytes on disk knows an external edit is about to be overwritten
     /// and saves it as a conflict copy first.
     bases: Mutex<HashMap<String, u64>>,
+    /// Parsed notes keyed by path, tagged with the file's mtime and
+    /// size. A scan only reads and parses files whose tag changed, so
+    /// listing and searching cost a `stat` per file, not a read.
+    cache: Mutex<HashMap<PathBuf, CachedNote>>,
+}
+
+/// A parsed note plus the file identity it was read at.
+#[derive(Clone)]
+struct CachedNote {
+    modified: SystemTime,
+    len: u64,
+    note: Note,
 }
 
 impl NotesStore {
@@ -53,6 +73,7 @@ impl NotesStore {
             index: Mutex::new(HashMap::new()),
             writes: Mutex::new(HashMap::new()),
             bases: Mutex::new(HashMap::new()),
+            cache: Mutex::new(HashMap::new()),
         };
         store.scan()?;
         Ok(store)
@@ -70,6 +91,34 @@ impl NotesStore {
             b.updated_at.cmp(&a.updated_at).then_with(|| a.id.cmp(&b.id))
         });
         Ok(notes)
+    }
+
+    /// Search notes by title and body, best matches first.
+    ///
+    /// Every whitespace-separated term must appear somewhere in the
+    /// note (case-insensitively); title hits weigh more than body
+    /// hits, and the newest-first order of [`Self::list`] breaks ties.
+    /// An empty query matches every note.
+    pub fn search(&self, query: &str) -> Result<Vec<NoteSearchHit>> {
+        let notes = self.list()?;
+        let terms: Vec<String> =
+            query.split_whitespace().map(str::to_lowercase).collect();
+
+        let mut hits: Vec<(u32, NoteSearchHit)> = Vec::new();
+        for note in notes {
+            let title = note_title(&note.content);
+            let Some(score) = match_score(&title, &note.content, &terms) else {
+                continue;
+            };
+
+            let snippet = snippet(&note.content, &terms);
+            hits.push((score, NoteSearchHit { title, snippet, note }));
+        }
+
+        // A stable sort keeps the newest-first input order within
+        // each score.
+        hits.sort_by_key(|(score, _)| std::cmp::Reverse(*score));
+        Ok(hits.into_iter().map(|(_, hit)| hit).collect())
     }
 
     /// Read a single note by id.
@@ -210,6 +259,8 @@ impl NotesStore {
     fn scan(&self) -> Result<Vec<Note>> {
         let mut notes = Vec::new();
         let mut index = HashMap::new();
+        let mut cache = HashMap::new();
+        let old_cache = self.cache.lock().unwrap().clone();
 
         for entry in fs::read_dir(&self.dir)? {
             let path = entry?.path();
@@ -217,13 +268,24 @@ impl NotesStore {
                 continue;
             }
 
-            let note = match self.adopt_note(&path) {
-                Ok(note) => note,
-                Err(e) => {
-                    warn!("Skipping unreadable note {path:?}: {e}");
-                    continue;
-                }
+            // A note whose file can't be tagged (stat failure) still
+            // lists; it just isn't cached for the next scan.
+            let (note, entry) = match cached(&old_cache, &path) {
+                Some(entry) => (entry.note.clone(), Some(entry)),
+                None => match self.adopt_note(&path) {
+                    // Tagged after any adoption write-back, so the tag
+                    // describes the bytes the note was parsed from.
+                    Ok(note) => (note.clone(), cache_entry(&path, note)),
+                    Err(e) => {
+                        warn!("Skipping unreadable note {path:?}: {e}");
+                        continue;
+                    }
+                },
             };
+
+            if let Some(entry) = entry {
+                cache.insert(path.clone(), entry);
+            }
 
             if index.insert(note.id.clone(), path.clone()).is_some() {
                 warn!("Duplicate note id {} at {path:?}", note.id);
@@ -232,6 +294,7 @@ impl NotesStore {
         }
 
         *self.index.lock().unwrap() = index;
+        *self.cache.lock().unwrap() = cache;
         Ok(notes)
     }
 
@@ -376,6 +439,137 @@ impl NotesStore {
             self.writes.lock().unwrap().insert(name.to_os_string(), contents);
         }
     }
+}
+
+/// The cached note for `path`, if the file still has the mtime and
+/// size it was parsed at.
+fn cached(
+    cache: &HashMap<PathBuf, CachedNote>,
+    path: &Path,
+) -> Option<CachedNote> {
+    let entry = cache.get(path)?;
+    let meta = fs::metadata(path).ok()?;
+    let fresh = meta
+        .modified()
+        .is_ok_and(|m| m == entry.modified && meta.len() == entry.len);
+    fresh.then(|| entry.clone())
+}
+
+/// Tag a parsed note with its file's current identity for the cache.
+fn cache_entry(path: &Path, note: Note) -> Option<CachedNote> {
+    let meta = fs::metadata(path).ok()?;
+    let modified = meta.modified().ok()?;
+    Some(CachedNote { modified, len: meta.len(), note })
+}
+
+/// The display title of a note: its first non-empty line with block
+/// and inline markdown markers stripped.
+pub fn note_title(body: &str) -> String {
+    let line = body.lines().find(|l| !l.trim().is_empty()).unwrap_or("");
+    let line = strip_inline_markers(strip_line_markers(line));
+    let title: String =
+        line.trim().chars().take(MAX_TITLE_LEN as usize).collect();
+    if title.is_empty() {
+        "Untitled".to_string()
+    } else {
+        title
+    }
+}
+
+/// The score of a note against the query terms: 3 per term found in
+/// the title, 1 per term found only in the body, `None` when any term
+/// is missing. No terms means everything matches.
+fn match_score(title: &str, body: &str, terms: &[String]) -> Option<u32> {
+    let title = title.to_lowercase();
+    let body = body.to_lowercase();
+
+    let mut score = 0;
+    for term in terms {
+        if title.contains(term.as_str()) {
+            score += 3;
+        } else if body.contains(term.as_str()) {
+            score += 1;
+        } else {
+            return None;
+        }
+    }
+    Some(score)
+}
+
+/// An excerpt of the first body line matching any term, windowed
+/// around the match. `None` when only the title line matches (the
+/// title is always shown anyway) or the query is empty.
+fn snippet(body: &str, terms: &[String]) -> Option<String> {
+    let mut lines = body.lines().filter(|l| !l.trim().is_empty());
+    // Skip the title line.
+    lines.next()?;
+
+    for line in lines {
+        let line = strip_line_markers(line.trim());
+        if let Some(at) = terms.iter().filter_map(|t| find_ci(line, t)).min() {
+            return Some(excerpt(line, at));
+        }
+    }
+    None
+}
+
+/// The byte offset of the first case-insensitive occurrence of
+/// `needle_lc` (already lowercased) in `haystack`.
+fn find_ci(haystack: &str, needle_lc: &str) -> Option<usize> {
+    if needle_lc.is_empty() {
+        return None;
+    }
+    haystack
+        .char_indices()
+        .map(|(i, _)| i)
+        .find(|&i| haystack[i..].to_lowercase().starts_with(needle_lc))
+}
+
+/// Cut a snippet window out of `line` around the match at byte
+/// offset `at`, with ellipses for anything trimmed away.
+fn excerpt(line: &str, at: usize) -> String {
+    let start = line[..at]
+        .char_indices()
+        .rev()
+        .take(SNIPPET_CONTEXT)
+        .last()
+        .map_or(0, |(i, _)| i);
+    let end = line[start..]
+        .char_indices()
+        .nth(SNIPPET_LEN)
+        .map_or(line.len(), |(i, _)| start + i);
+
+    let mut out = String::new();
+    if start > 0 {
+        out.push('…');
+    }
+    out.push_str(line[start..end].trim());
+    if end < line.len() {
+        out.push('…');
+    }
+    out
+}
+
+/// Strip inline markdown syntax (emphasis, code, highlight, strike,
+/// link targets) from a title line, keeping the visible text.
+fn strip_inline_markers(line: &str) -> String {
+    let line = strip_links(line);
+    line.replace(['*', '`'], "").replace("~~", "").replace("==", "")
+}
+
+/// Reduce `[text](url)` links to their text.
+fn strip_links(line: &str) -> String {
+    let mut out = String::with_capacity(line.len());
+    let mut rest = line;
+    while let Some(open) = rest.find('[') {
+        let Some(close) = rest[open..].find("](") else { break };
+        let Some(end) = rest[open + close + 2..].find(')') else { break };
+        out.push_str(&rest[..open]);
+        out.push_str(&rest[open + 1..open + close]);
+        rest = &rest[open + close + 2 + end + 1..];
+    }
+    out.push_str(rest);
+    out
 }
 
 /// Clamp a timestamp to the microsecond precision the frontmatter
@@ -702,6 +896,103 @@ mod tests {
 
         store.delete(&note.id).unwrap();
         assert!(store.is_own_write(&path), "own deletes stay quiet");
+    }
+
+    #[test]
+    fn searches_titles_and_bodies() {
+        let (_dir, store) = store();
+        let groceries =
+            upsert(&store, "", "# Groceries\n\n- [ ] Milk\n- [ ] Coffee beans");
+        let journal =
+            upsert(&store, "", "# Journal\n\nBought groceries after work.");
+        upsert(&store, "", "# Ideas\n\nNothing here.");
+
+        let hits = store.search("groceries").unwrap();
+        assert_eq!(hits.len(), 2);
+        // The title match outranks the body match.
+        assert_eq!(hits[0].note.id, groceries.id);
+        assert_eq!(hits[0].title, "Groceries");
+        assert_eq!(hits[0].snippet, None, "title-only match has no snippet");
+        assert_eq!(hits[1].note.id, journal.id);
+        assert_eq!(
+            hits[1].snippet.as_deref(),
+            Some("Bought groceries after work.")
+        );
+    }
+
+    #[test]
+    fn search_requires_every_term() {
+        let (_dir, store) = store();
+        upsert(&store, "", "# Shopping\n\nmilk and eggs");
+        upsert(&store, "", "# Chores\n\nmilk the cows");
+
+        assert_eq!(store.search("milk eggs").unwrap().len(), 1);
+        assert_eq!(store.search("milk").unwrap().len(), 2);
+        assert_eq!(store.search("MILK").unwrap().len(), 2, "case-insensitive");
+        assert!(store.search("saffron").unwrap().is_empty());
+    }
+
+    #[test]
+    fn empty_query_matches_everything_newest_first() {
+        let (_dir, store) = store();
+        upsert(&store, "", "# Older");
+        let newer = upsert(&store, "", "# Newer");
+
+        let hits = store.search("  ").unwrap();
+        assert_eq!(hits.len(), 2);
+        assert_eq!(hits[0].note.id, newer.id);
+        assert_eq!(hits[0].title, "Newer");
+    }
+
+    #[test]
+    fn titles_drop_markdown_syntax() {
+        assert_eq!(
+            note_title("# **Big** _plans_ for `code`"),
+            "Big _plans_ for code"
+        );
+        assert_eq!(
+            note_title("- [ ] ==Read== [the docs](https://x.dev)"),
+            "Read the docs"
+        );
+        assert_eq!(note_title("\n\n  plain text  "), "plain text");
+        assert_eq!(note_title(""), "Untitled");
+    }
+
+    #[test]
+    fn long_snippet_lines_window_around_the_match() {
+        let padding = "x".repeat(200);
+        let body = format!("# Title\n\n{padding} needle {padding}");
+        let hits = {
+            let (_dir, store) = store();
+            upsert(&store, "", &body);
+            store.search("needle").unwrap()
+        };
+
+        let snippet = hits[0].snippet.as_deref().unwrap();
+        assert!(snippet.starts_with('…') && snippet.ends_with('…'));
+        assert!(snippet.contains("needle"));
+        assert!(snippet.chars().count() < 150);
+    }
+
+    #[test]
+    fn scan_cache_serves_fresh_files_and_spots_external_edits() {
+        let (_dir, store) = store();
+        let note = upsert(&store, "", "# Cached\n\noriginal");
+        let path = store.lookup(&note.id).unwrap();
+
+        // Two scans in a row: the second is served from cache.
+        assert_eq!(store.list().unwrap()[0].content, "# Cached\n\noriginal");
+        assert_eq!(store.list().unwrap()[0].content, "# Cached\n\noriginal");
+
+        // An external rewrite must invalidate the cached entry.
+        let text = fs::read_to_string(&path)
+            .unwrap()
+            .replace("original", "changed externally");
+        fs::write(&path, text).unwrap();
+        assert_eq!(
+            store.list().unwrap()[0].content,
+            "# Cached\n\nchanged externally"
+        );
     }
 
     #[test]

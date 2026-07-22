@@ -21,6 +21,17 @@ impl Note {
     }
 }
 
+/// A note matched by a search, with its display title and, for body
+/// matches, an excerpt around the first match.
+#[derive(Debug, Clone, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "gen_models.ts")]
+pub struct NoteSearchHit {
+    pub note: Note,
+    pub title: String,
+    pub snippet: Option<String>,
+}
+
 pub enum ModelType {
     TypeNote,
 }

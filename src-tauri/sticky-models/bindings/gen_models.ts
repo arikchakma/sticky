@@ -3,3 +3,9 @@
 export type AnyModel = Note;
 
 export type Note = { model: "note", id: string, createdAt: string, updatedAt: string, content: string, };
+
+/**
+ * A note matched by a search, with its display title and, for body
+ * matches, an excerpt around the first match.
+ */
+export type NoteSearchHit = { note: Note, title: string, snippet: string | null, };

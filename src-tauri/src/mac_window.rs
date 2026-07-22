@@ -243,6 +243,11 @@ pub fn install_click_count_monitor() {
     }
 }
 
+// Duration of the window height animation, in seconds. Fixed, unlike
+// setFrame:animate:'s default, which grows with the resize distance
+// and makes large resizes feel sluggish.
+const RESIZE_DURATION: f64 = 0.15;
+
 // Animates the window to `height` points, keeping its top-left corner
 // in place. Main thread only.
 pub fn animate_window_height<R: Runtime>(
@@ -264,8 +269,13 @@ pub fn animate_window_height<R: Runtime>(
         // Cocoa frames use a bottom-left origin with y growing upwards.
         frame.origin.y += frame.size.height - height;
         frame.size.height = height;
-        let _: () =
-            msg_send![ns_window, setFrame: frame display: YES animate: YES];
+
+        let _: () = msg_send![class!(NSAnimationContext), beginGrouping];
+        let context: id = msg_send![class!(NSAnimationContext), currentContext];
+        let _: () = msg_send![context, setDuration: RESIZE_DURATION];
+        let animator: id = msg_send![ns_window, animator];
+        let _: () = msg_send![animator, setFrame: frame display: YES];
+        let _: () = msg_send![class!(NSAnimationContext), endGrouping];
     }
 }
 

@@ -73,9 +73,9 @@ function ToastPage() {
   }, [toast, parent]);
 
   return (
-    <main className="bg-foreground flex h-screen items-center justify-center overflow-hidden">
+    <main className="bg-toast flex h-screen items-center justify-center overflow-hidden">
       <span ref={textRef} className="whitespace-nowrap">
-        <Text size="2" className="text-background">
+        <Text size="2" className="text-zinc-100">
           {toast.message}
         </Text>
       </span>

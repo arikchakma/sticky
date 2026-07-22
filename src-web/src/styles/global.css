@@ -20,6 +20,7 @@
   --color-border: light-dark(var(--color-zinc-200), var(--color-zinc-800));
   --color-ring: var(--color-zinc-500);
   --color-accent: light-dark(var(--color-red-500), var(--color-red-400));
+  --color-toast: light-dark(var(--color-black), var(--color-zinc-800));
   --color-selection: light-dark(
     --alpha(var(--color-red-200) / 70%),
     --alpha(var(--color-red-500) / 30%)
@@ -44,6 +45,17 @@ body,
 }
 
 html.window-hovered .window-chrome {
+  opacity: 1;
+}
+
+/* The note title always sits in the header, dimmed while the mouse is
+   away and brightening as the chrome fades in on hover. */
+.window-title {
+  opacity: 0.45;
+  transition: opacity 150ms ease;
+}
+
+html.window-hovered .window-title {
   opacity: 1;
 }
 

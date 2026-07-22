@@ -1,12 +1,15 @@
+import { useHotkey } from '@tanstack/react-hotkeys';
 import { useQueryClient } from '@tanstack/react-query';
 import { EditorContent, useEditor } from '@tiptap/react';
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Divider } from '~/components/divider';
+import { FindBar } from '~/components/find-bar';
 import { Header } from '~/components/header';
 import { MenuBar } from '~/components/menu-bar/menu-bar';
 import { useNoteActions } from '~/hooks/use-note-actions';
 import { useNoteAutosave } from '~/hooks/use-note-autosave';
 import { useNoteSync } from '~/hooks/use-note-sync';
+import { useNoteTitle } from '~/hooks/use-note-title';
 import { useOnFocusChanged } from '~/hooks/use-on-focus-changed';
 import { useWindowAutoSize } from '~/hooks/use-window-autosize';
 import { useWindowReveal } from '~/hooks/use-window-reveal';
@@ -25,8 +28,6 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
   const { noteId: currentNoteId, content: defaultContent } = props;
 
   const editorContentRef = useRef<HTMLDivElement>(null);
-  const headerRef = useRef<HTMLDivElement>(null);
-  const menuBarRef = useRef<HTMLDivElement>(null);
   const bottomDividerRef = useRef<HTMLDivElement>(null);
   const topDividerRef = useRef<HTMLDivElement>(null);
 
@@ -50,15 +51,17 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
   });
 
   const { fitWindow, fitOrSnapWindow, toggleAutoSize, isAutoSizing } =
-    useWindowAutoSize(editor, {
-      header: headerRef,
-      menuBar: menuBarRef,
-      editorContent: editorContentRef,
-      topDivider: topDividerRef,
-      bottomDivider: bottomDividerRef,
-    });
+    useWindowAutoSize(editor, currentNoteId, editorContentRef);
 
   const { flush } = useNoteAutosave(editor, currentNoteId, isDirtyRef);
+
+  const [isFindOpen, setIsFindOpen] = useState(false);
+  const openFind = useCallback(() => setIsFindOpen(true), []);
+  const closeFind = useCallback(() => setIsFindOpen(false), []);
+
+  // The bar itself handles Mod+F while it is already open, by
+  // refocusing its input.
+  useHotkey('Mod+F', openFind);
 
   const { createNote, browseNotes } = useNoteActions({
     editor,
@@ -68,7 +71,10 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
     fitWindow,
     toggleAutoSize,
     isAutoSizing,
+    openFind,
   });
+
+  const title = useNoteTitle(editor);
 
   const queryClient = useQueryClient();
   useOnFocusChanged(() => {
@@ -78,27 +84,43 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
   useNoteSync(editor, currentNoteId, isDirtyRef);
   useWindowReveal(editor);
 
-  const onScroll = (e: React.UIEvent<HTMLDivElement>) => {
+  // The dividers hint at content scrolled out above or below the
+  // viewport, fading in over the first few pixels of overflow.
+  const updateDividers = useCallback((element: HTMLElement) => {
     const bottomDivider = bottomDividerRef.current;
     const topDivider = topDividerRef.current;
     if (!bottomDivider || !topDivider) {
       return;
     }
 
-    const element = e.currentTarget;
-    const scrollTop = element.scrollTop;
-    const scrollHeight = element.scrollHeight;
-    const clientHeight = element.clientHeight;
-    const scrollBottom = scrollTop + clientHeight;
+    // A clipped viewport (auto-fit) has nothing scrolled out of view;
+    // any overflow it measures is a transient the window is about to
+    // absorb.
+    if (!element.classList.contains('overflow-y-scroll')) {
+      bottomDivider.style.opacity = '0';
+      topDivider.style.opacity = '0';
+      return;
+    }
 
-    const distance = scrollHeight - scrollBottom;
-    const bottomOpacity = clamp(distance / 17, [0, 1]);
-    bottomDivider.style.opacity = String(bottomOpacity);
+    const distance =
+      element.scrollHeight - element.scrollTop - element.clientHeight;
+    bottomDivider.style.opacity = String(clamp(distance / 17, [0, 1]));
+    topDivider.style.opacity = String(clamp(element.scrollTop / 15, [0, 1]));
+  }, []);
 
-    const topDistance = scrollTop;
-    const topOpacity = clamp(topDistance / 15, [0, 1]);
-    topDivider.style.opacity = String(topOpacity);
-  };
+  // Overflow also comes and goes without scrolling — the window
+  // resizing, or the content growing under it.
+  useEffect(() => {
+    const viewport = editorContentRef.current;
+    if (!viewport) {
+      return;
+    }
+
+    const observer = new ResizeObserver(() => updateDividers(viewport));
+    observer.observe(viewport);
+    observer.observe(editor.view.dom);
+    return () => observer.disconnect();
+  }, [editor, updateDividers]);
 
   const handleContentClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
@@ -115,11 +137,13 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
   return (
     <main>
       <Header
-        ref={headerRef}
+        title={title}
         onNewWindow={createNote}
         onDoubleClick={fitOrSnapWindow}
         onBrowse={browseNotes}
       />
+
+      {isFindOpen && <FindBar editor={editor} onClose={closeFind} />}
 
       <div className="mt-[var(--window-menu-height)] flex h-[calc(100vh-var(--window-menu-height))] flex-col">
         <Divider
@@ -131,15 +155,15 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
           id={EDITOR_CONTENT_ID}
           editor={editor}
           ref={editorContentRef}
-          className="cursor-text! grow flex-col overflow-y-scroll overscroll-contain"
-          onScroll={onScroll}
+          className="cursor-text! min-h-0 grow flex-col overflow-y-scroll overscroll-contain"
+          onScroll={(e) => updateDividers(e.currentTarget)}
           onClick={handleContentClick}
         />
         <Divider
           ref={bottomDividerRef}
           className="mt-auto shrink-0 opacity-0 transition-opacity"
         />
-        <MenuBar ref={menuBarRef} editor={editor} />
+        <MenuBar editor={editor} />
       </div>
     </main>
   );

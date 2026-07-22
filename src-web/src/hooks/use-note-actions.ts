@@ -16,6 +16,7 @@ type NoteActionsOptions = {
   fitWindow: () => Promise<unknown>;
   toggleAutoSize: () => void;
   isAutoSizing: () => boolean;
+  openFind: () => void;
 };
 
 export function useNoteActions(options: NoteActionsOptions) {
@@ -27,6 +28,7 @@ export function useNoteActions(options: NoteActionsOptions) {
     fitWindow,
     toggleAutoSize,
     isAutoSizing,
+    openFind,
   } = options;
 
   const navigate = useNavigate();
@@ -97,6 +99,7 @@ export function useNoteActions(options: NoteActionsOptions) {
       'new-note': createNote,
       'duplicate-note': () => openNewNote(editor.getMarkdown()),
       'browse-notes': browseNotes,
+      'find-in-note': openFind,
       'fit-window': () => {
         fitWindow();
       },

@@ -1,4 +1,5 @@
 use std::io::{Result as IoResult, Write};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use flexi_logger::{
     Age, Cleanup, Criterion, DeferredNow, FileSpec, LogSpecification, Logger,
@@ -6,20 +7,22 @@ use flexi_logger::{
 };
 use log::{error, warn, Level, Record};
 use sticky_models::error::Error;
-use sticky_models::models::Note;
+use sticky_models::models::{Note, NoteSearchHit};
 use sticky_models::queries::{
-    delete_note, get_note, list_notes, note_path, notes_dir, upsert_note,
+    delete_note, get_note, list_notes, note_path, notes_dir, search_notes,
+    upsert_note,
 };
 use sticky_models::watcher::NOTES_CHANGED;
 use tauri::webview::PageLoadEvent;
 use tauri::{
-    include_image, tray::TrayIconBuilder, App, AppHandle, Emitter, Manager,
-    RunEvent, Runtime, WebviewWindow, WindowEvent,
+    App, AppHandle, Emitter, Manager, RunEvent, Runtime, WebviewWindow,
+    WindowEvent,
 };
 use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
 
 #[cfg(target_os = "macos")]
 mod mac_window;
+mod tray;
 mod update;
 mod window;
 #[cfg(target_os = "macos")]
@@ -31,7 +34,11 @@ mod macros;
 use window::MAIN_WINDOW_PREFIX;
 
 #[derive(Default)]
-pub struct AppState {}
+pub struct AppState {
+    /// Whether the user chose to quit (Cmd+Q). Closing the last
+    /// window then really exits instead of staying in the tray.
+    pub quitting: AtomicBool,
+}
 
 #[tauri::command]
 async fn cmd_new_child_window(
@@ -81,6 +88,19 @@ async fn cmd_header_mouse_down(window: WebviewWindow) -> Result<bool, String> {
 
     window.start_dragging().map_err(|e| e.to_string())?;
     Ok(false)
+}
+
+/// Whether the left mouse button is currently pressed. The window
+/// autosize logic uses it to tell a user's edge drag from resize events
+/// echoing its own programmatic resizes: only the drag holds the
+/// button.
+#[tauri::command]
+async fn cmd_is_left_mouse_down() -> bool {
+    #[cfg(target_os = "macos")]
+    return mac_window::is_left_mouse_down();
+
+    #[cfg(not(target_os = "macos"))]
+    false
 }
 
 // Animates the window to the given logical height, keeping its
@@ -342,6 +362,14 @@ async fn cmd_get_note<R: Runtime>(
 }
 
 #[tauri::command]
+async fn cmd_search_notes<R: Runtime>(
+    query: String,
+    app_handle: AppHandle<R>,
+) -> Result<Vec<NoteSearchHit>, Error> {
+    search_notes(&app_handle, &query).await
+}
+
+#[tauri::command]
 async fn cmd_upsert_note<R: Runtime>(
     note: Note,
     app_handle: AppHandle<R>,
@@ -434,11 +462,13 @@ pub fn run() {
             tauri_plugin_window_state::Builder::new()
                 .with_state_flags(StateFlags::all() - StateFlags::VISIBLE)
                 .skip_initial_state(&format!("{MAIN_WINDOW_PREFIX}0"))
-                // Utility windows (like the search panel) are positioned
-                // by the app; restoring a saved state would override it.
-                .with_filter(|label| {
-                    !label.starts_with(window::OTHER_WINDOW_PREFIX)
-                })
+                // Only the primary window persists its geometry. Every
+                // other note window is transient: its `main_N` label is a
+                // recycled slot, not a note identity, so restoring by it
+                // would open new notes at some previous window's size.
+                // They open at their creation size and let autosize grow
+                // to fit the content instead.
+                .with_filter(|label| label == format!("{MAIN_WINDOW_PREFIX}0"))
                 .build(),
         )
         .plugin(tauri_plugin_dialog::init())
@@ -472,9 +502,7 @@ pub fn run() {
                 mac_window::install_click_count_monitor();
             }
 
-            let image = include_image!("./icons/tray/32x32.png");
-            let _ =
-                TrayIconBuilder::new().icon(image).build(app_handle).unwrap();
+            tray::init(app_handle)?;
             app_handle.manage(AppState::default());
             app_handle.manage(window::PanelState::default());
             app_handle.manage(window::ToastState::default());
@@ -486,6 +514,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             cmd_animate_window_height,
             cmd_header_mouse_down,
+            cmd_is_left_mouse_down,
             cmd_new_child_window,
             cmd_new_main_window,
             cmd_snap_window_to_corner,
@@ -500,6 +529,7 @@ pub fn run() {
             cmd_present_toast,
             cmd_list_notes,
             cmd_get_note,
+            cmd_search_notes,
             cmd_upsert_note,
             cmd_delete_note,
         ])
@@ -507,6 +537,20 @@ pub fn run() {
         .expect("error while running tauri application")
         .run(|app_handle, event| {
             match event {
+                // Closing the last window keeps the app alive behind
+                // its tray icon. Quitting goes through the tray menu
+                // or Cmd+Q, which exit with an explicit code or set
+                // the quitting flag.
+                RunEvent::ExitRequested { code: None, api, .. } => {
+                    let quitting = app_handle
+                        .state::<AppState>()
+                        .quitting
+                        .load(Ordering::Relaxed);
+                    if !quitting {
+                        api.prevent_exit();
+                    }
+                }
+
                 RunEvent::Ready => {
                     debug_log!("Application is ready, creating main window");
                     update::check_in_background(app_handle);
