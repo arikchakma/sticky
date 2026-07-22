@@ -34,20 +34,31 @@ export function useNoteActions(options: NoteActionsOptions) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const openNewNote = useCallback(async (content: string) => {
-    const newNote = await invoke<Note>('cmd_upsert_note', {
-      note: {
-        model: 'note',
-        content,
-      },
-    });
+  const insertNote = useCallback(
+    async (content: string) => {
+      const newNote = await invoke<Note>('cmd_upsert_note', {
+        note: {
+          model: 'note',
+          content,
+        },
+      });
 
-    queryClient.invalidateQueries(listNotesOptions());
-    await invoke('cmd_new_main_window', {
-      url: `/${newNote.id}`,
-      size: [MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT],
-    });
-  }, []);
+      queryClient.invalidateQueries(listNotesOptions());
+      return newNote;
+    },
+    [queryClient]
+  );
+
+  const openNewNote = useCallback(
+    async (content: string) => {
+      const newNote = await insertNote(content);
+      await invoke('cmd_new_main_window', {
+        url: `/${newNote.id}`,
+        size: [MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT],
+      });
+    },
+    [insertNote]
+  );
 
   const createNote = useCallback(async () => {
     if (editor.isEmpty) {
@@ -59,6 +70,27 @@ export function useNoteActions(options: NoteActionsOptions) {
 
     await openNewNote('');
   }, [editor, openNewNote]);
+
+  const createNoteHere = useCallback(async () => {
+    if (editor.isEmpty) {
+      await invoke('cmd_show_toast', {
+        message: 'You already have an empty note',
+      });
+      return;
+    }
+
+    // Unsaved edits must reach disk before the route swaps the editor
+    // out, or they die with it; same as the search-selection handler.
+    await flush();
+
+    const newNote = await insertNote('');
+    navigate({
+      to: '/$noteId',
+      params: {
+        noteId: newNote.id,
+      },
+    });
+  }, [editor, flush, insertNote, navigate]);
 
   const browseNotes = useCallback(async () => {
     await invoke('cmd_open_search_window', {
@@ -97,6 +129,7 @@ export function useNoteActions(options: NoteActionsOptions) {
     }),
     {
       'new-note': createNote,
+      'new-note-here': createNoteHere,
       'duplicate-note': () => openNewNote(editor.getMarkdown()),
       'browse-notes': browseNotes,
       'find-in-note': openFind,

@@ -3,6 +3,7 @@ import {
   ClipboardCopyIcon,
   ClipboardTypeIcon,
   CopyPlusIcon,
+  FilePlusIcon,
   FolderIcon,
   FolderOpenIcon,
   LayersIcon,
@@ -47,6 +48,12 @@ export const commandGroups: CommandGroup[] = [
         label: 'New Note',
         icon: PlusIcon,
         shortcut: ['⌘', 'N'],
+      },
+      {
+        id: 'new-note-here',
+        label: 'New Note in This Window',
+        icon: FilePlusIcon,
+        shortcut: ['⇧', '⌘', 'N'],
       },
       {
         id: 'duplicate-note',
