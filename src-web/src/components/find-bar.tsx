@@ -1,5 +1,10 @@
 import { useEditorState, type Editor } from '@tiptap/react';
-import { ChevronDownIcon, ChevronUpIcon, XIcon } from 'lucide-react';
+import {
+  ChevronDownIcon,
+  ChevronUpIcon,
+  SearchIcon,
+  XIcon,
+} from 'lucide-react';
 import { useCallback, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -112,22 +117,26 @@ export function FindBar(props: FindBarProps) {
   };
 
   return (
-    <div className="border-border bg-background fixed right-2 top-[calc(var(--window-menu-height)+2px)] z-50 flex w-[calc(100%-1rem)] max-w-80 items-center gap-1 rounded-lg border p-1 shadow-md">
-      <Input
-        ref={inputRef}
-        value={query}
-        placeholder="Find in note..."
-        className="h-7 grow rounded-md border-none px-2 text-sm focus:border-none"
-        spellCheck={false}
-        autoComplete="off"
-        autoCorrect="off"
-        autoCapitalize="off"
-        onChange={(e) => {
-          editor.commands.setFindQuery(e.target.value);
-          scrollToActiveMatch(editor);
-        }}
-        onKeyDown={onInputKeyDown}
-      />
+    <div className="border-border h-9.5 flex shrink-0 items-center gap-1 border-t pr-3">
+      <label className="flex h-full grow items-center gap-2 pl-[var(--editor-inset-x)]">
+        <SearchIcon className="text-faint size-3.5 shrink-0" />
+
+        <Input
+          ref={inputRef}
+          value={query}
+          placeholder="Find in note…"
+          className="h-full grow rounded-none border-none bg-transparent p-0 text-sm focus:border-none"
+          spellCheck={false}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          onChange={(e) => {
+            editor.commands.setFindQuery(e.target.value);
+            scrollToActiveMatch(editor);
+          }}
+          onKeyDown={onInputKeyDown}
+        />
+      </label>
 
       {query && (
         <Text
@@ -137,6 +146,8 @@ export function FindBar(props: FindBarProps) {
           {matchCount === 0 ? '0/0' : `${activeIndex + 1}/${matchCount}`}
         </Text>
       )}
+
+      <span className="bg-border mx-0.5 h-4 w-px shrink-0" />
 
       <Button
         size="icon"
