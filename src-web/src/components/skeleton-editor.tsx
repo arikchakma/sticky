@@ -42,7 +42,7 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
       scrollMargin: 40,
       attributes: {
         class:
-          'focus:outline-none cursor-text! border-none px-5 pb-0 pt-2 editor-content',
+          'focus:outline-none cursor-text! border-none px-[var(--editor-inset-x)] pb-2 pt-2 editor-content',
       },
     },
     onUpdate: () => {
@@ -143,8 +143,6 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
         onBrowse={browseNotes}
       />
 
-      {isFindOpen && <FindBar editor={editor} onClose={closeFind} />}
-
       <div className="mt-[var(--window-menu-height)] flex h-[calc(100vh-var(--window-menu-height))] flex-col">
         <Divider
           ref={topDividerRef}
@@ -163,7 +161,11 @@ export function SkeletonEditor(props: SkeletonEditorProps) {
           ref={bottomDividerRef}
           className="mt-auto shrink-0 opacity-0 transition-opacity"
         />
-        <MenuBar editor={editor} />
+        {isFindOpen ? (
+          <FindBar editor={editor} onClose={closeFind} />
+        ) : (
+          <MenuBar editor={editor} />
+        )}
       </div>
     </main>
   );

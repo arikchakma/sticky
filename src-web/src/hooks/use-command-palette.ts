@@ -22,6 +22,10 @@ export function useCommandPalette(
     actions['new-note']?.();
   });
 
+  useHotkey('Mod+Shift+N', () => {
+    actions['new-note-here']?.();
+  });
+
   useHotkey('Mod+P', () => {
     actions['browse-notes']?.();
   });

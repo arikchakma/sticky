@@ -27,6 +27,7 @@
   );
 
   --window-menu-height: 36px;
+  --editor-inset-x: 1.25rem;
 }
 
 html,

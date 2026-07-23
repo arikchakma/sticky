@@ -2,15 +2,11 @@
 
 use sticky_models::constants::COMMAND_WINDOW_HEIGHT;
 
-use super::panel::attach_panel_lifecycle;
+use super::panel::{attach_panel_lifecycle, PANEL_INSET, PANEL_TOP_OFFSET};
 use super::*;
 
 pub const COMMAND_WINDOW_MIN_WIDTH: f64 = 340.0;
 pub const COMMAND_WINDOW_MAX_WIDTH: f64 = 420.0;
-/// Horizontal inset from the parent window's edges.
-pub const COMMAND_WINDOW_INSET: f64 = 16.0;
-/// Distance between the parent's top edge and the panel's.
-pub const COMMAND_WINDOW_TOP_OFFSET: f64 = 50.0;
 
 /// Returns the label of the command palette attached to `parent_label`.
 pub fn command_window_label(parent_label: &str) -> String {
@@ -32,7 +28,7 @@ pub fn create_command_window(
     let parent_size =
         parent_window.outer_size().unwrap().to_logical::<f64>(scale_factor);
 
-    let width = (parent_size.width - COMMAND_WINDOW_INSET * 2.0)
+    let width = (parent_size.width - PANEL_INSET * 2.0)
         .clamp(COMMAND_WINDOW_MIN_WIDTH, COMMAND_WINDOW_MAX_WIDTH);
 
     let config = CreateWindowConfig {
@@ -69,7 +65,7 @@ pub fn create_command_window(
                 crate::mac_window::anchor_panel_to_parent(
                     &panel,
                     &parent,
-                    COMMAND_WINDOW_TOP_OFFSET,
+                    PANEL_TOP_OFFSET,
                 );
             })
             .expect("Failed to set up the command palette on the main thread");
@@ -120,7 +116,7 @@ pub fn present_command_window(
                 crate::mac_window::anchor_panel_to_parent(
                     &panel,
                     &parent,
-                    COMMAND_WINDOW_TOP_OFFSET,
+                    PANEL_TOP_OFFSET,
                 );
                 let _ = panel.show();
                 let _ = panel.set_focus();

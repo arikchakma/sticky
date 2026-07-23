@@ -151,12 +151,45 @@ fn fade_traffic_lights(ns_window: cocoa::base::id, alpha: f64) {
     }
 }
 
+// The close button's fill at rest: system red while the window is key,
+// otherwise the appearance-aware dimmed grey.
+fn close_resting_color(ns_window: cocoa::base::id) -> (f64, f64, f64) {
+    use cocoa::base::{BOOL, YES};
+    let is_key: BOOL = unsafe { msg_send![ns_window, isKeyWindow] };
+    if is_key == YES {
+        CLOSE_RED
+    } else if is_dark_appearance(ns_window) {
+        DIMMED_GREY_DARK
+    } else {
+        DIMMED_GREY
+    }
+}
+
+// Repaints a traffic light circle's layer background.
+fn set_traffic_light_color(button: cocoa::base::id, rgb: (f64, f64, f64)) {
+    let (r, g, b) = rgb;
+    unsafe {
+        let color: cocoa::base::id = msg_send![
+            class!(NSColor),
+            colorWithSRGBRed: r green: g blue: b alpha: 1.0f64
+        ];
+        let cg_color: cocoa::base::id = msg_send![color, CGColor];
+        let layer: cocoa::base::id = msg_send![button, layer];
+        let _: () = msg_send![layer, setBackgroundColor: cg_color];
+    }
+}
+
 extern "C" fn traffic_light_mouse_entered(
     this: &objc::runtime::Object,
     _cmd: objc::runtime::Sel,
     _event: cocoa::base::id,
 ) {
     set_traffic_light_glyphs_hidden(this, false);
+    // `this` is the close button (it owns the cluster tracking area).
+    // Give it its red even while the window is unfocused, so hovering
+    // reveals the color the way native macOS does.
+    let close = this as *const objc::runtime::Object as cocoa::base::id;
+    set_traffic_light_color(close, CLOSE_RED);
 }
 
 extern "C" fn traffic_light_mouse_exited(
@@ -165,6 +198,9 @@ extern "C" fn traffic_light_mouse_exited(
     _event: cocoa::base::id,
 ) {
     set_traffic_light_glyphs_hidden(this, true);
+    let close = this as *const objc::runtime::Object as cocoa::base::id;
+    let ns_window: cocoa::base::id = unsafe { msg_send![close, window] };
+    set_traffic_light_color(close, close_resting_color(ns_window));
 }
 
 // NSButton subclass that reveals the cluster's glyph sublayers on hover,
