@@ -77,6 +77,10 @@
     @apply mb-1.5 text-[15px] leading-snug;
   }
 
+  strong {
+    @apply font-medium;
+  }
+
   ul:not([data-type='taskList']) {
     @apply ps-6.5 mb-2 list-disc;
 
