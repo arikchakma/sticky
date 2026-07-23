@@ -1,3 +1,4 @@
+import { useHotkey } from '@tanstack/react-hotkeys';
 import { useEditorState, type Editor } from '@tiptap/react';
 import {
   ChevronDownIcon,
@@ -84,37 +85,24 @@ export function FindBar(props: FindBarProps) {
     [editor]
   );
 
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        close();
-        return;
-      }
+  useHotkey('Escape', close);
+  useHotkey('Mod+G', () => step(1));
+  useHotkey('Mod+Shift+G', () => step(-1));
 
-      if (e.key === 'g' && e.metaKey) {
-        e.preventDefault();
-        step(e.shiftKey ? -1 : 1);
-        return;
-      }
+  useHotkey(
+    'Mod+F',
+    () => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    },
+    { conflictBehavior: 'allow' }
+  );
 
-      if (e.key === 'f' && e.metaKey) {
-        e.preventDefault();
-        inputRef.current?.focus();
-        inputRef.current?.select();
-      }
-    };
-
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [close, step]);
-
-  const onInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      step(e.shiftKey ? -1 : 1);
-    }
-  };
+  useHotkey('Enter', () => step(1), { target: inputRef, ignoreInputs: false });
+  useHotkey('Shift+Enter', () => step(-1), {
+    target: inputRef,
+    ignoreInputs: false,
+  });
 
   return (
     <div className="border-border h-9.5 flex shrink-0 items-center gap-1 border-t pr-3">
@@ -134,7 +122,6 @@ export function FindBar(props: FindBarProps) {
             editor.commands.setFindQuery(e.target.value);
             scrollToActiveMatch(editor);
           }}
-          onKeyDown={onInputKeyDown}
         />
       </label>
 
