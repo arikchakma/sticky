@@ -6,8 +6,10 @@ import {
   FilePlusIcon,
   FolderIcon,
   FolderOpenIcon,
+  InfoIcon,
   LayersIcon,
   PlusIcon,
+  RefreshCwIcon,
   SearchIcon,
   SquareDashedIcon,
   Trash2Icon,
@@ -120,6 +122,22 @@ export const commandGroups: CommandGroup[] = [
             ? 'Disable Window Auto-Sizing'
             : 'Enable Window Auto-Sizing',
         icon: SquareDashedIcon,
+      },
+    ],
+  },
+  {
+    id: 'app',
+    title: 'App',
+    children: [
+      {
+        id: 'about',
+        label: 'About Sticky',
+        icon: InfoIcon,
+      },
+      {
+        id: 'check-for-updates',
+        label: 'Check for Updates',
+        icon: RefreshCwIcon,
       },
     ],
   },
