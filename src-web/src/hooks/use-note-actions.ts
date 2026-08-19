@@ -153,6 +153,8 @@ export function useNoteActions(options: NoteActionsOptions) {
         }
       },
       'open-notes-folder': () => invoke('cmd_open_notes_dir'),
+      about: () => invoke('cmd_show_about'),
+      'check-for-updates': () => invoke('cmd_check_for_updates'),
       'delete-note': deleteNote,
     }
   );
@@ -183,9 +185,23 @@ export function useNoteActions(options: NoteActionsOptions) {
       }
     );
 
+    // The updater downloads on the Rust side and reports progress here so
+    // the user can see the app is updating before it relaunches.
+    const unlistenUpdate = currentWindow.listen<number>(
+      'update:progress',
+      (event) => {
+        const message =
+          event.payload >= 100
+            ? 'Installing update…'
+            : `Downloading update… ${event.payload}%`;
+        invoke('cmd_show_toast', { message });
+      }
+    );
+
     return () => {
       unlistenSelected.then((fn) => fn());
       unlistenDeleted.then((fn) => fn());
+      unlistenUpdate.then((fn) => fn());
     };
   }, [navigate, flush]);
 

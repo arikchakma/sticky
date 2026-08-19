@@ -346,6 +346,26 @@ async fn cmd_popup_format_menu(
     }
 }
 
+// Shows the native "About Sticky" panel with the app's name, version,
+// and copyright.
+#[tauri::command]
+fn cmd_show_about(app: AppHandle) {
+    #[cfg(target_os = "macos")]
+    {
+        let _ = app.run_on_main_thread(mac_window::show_about_panel);
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    let _ = app;
+}
+
+// Checks for an update in response to the user asking, reporting the
+// outcome (up to date, download progress, or an error).
+#[tauri::command]
+fn cmd_check_for_updates(app: AppHandle) {
+    update::check_now(&app);
+}
+
 #[tauri::command]
 async fn cmd_list_notes<R: Runtime>(
     app_handle: AppHandle<R>,
@@ -525,6 +545,8 @@ pub fn run() {
             cmd_reveal_note,
             cmd_note_path,
             cmd_popup_format_menu,
+            cmd_show_about,
+            cmd_check_for_updates,
             cmd_show_toast,
             cmd_present_toast,
             cmd_list_notes,

@@ -249,6 +249,21 @@ pub fn is_left_mouse_down() -> bool {
     buttons & 1 != 0
 }
 
+// Shows the standard macOS About panel, which reads the app's name,
+// version, and copyright from the bundle's Info.plist. The app runs as
+// an accessory, so activate it first or the panel opens behind whatever
+// is frontmost. Main thread only.
+pub fn show_about_panel() {
+    use cocoa::base::{id, nil, YES};
+
+    #[allow(unexpected_cfgs)]
+    unsafe {
+        let app: id = msg_send![class!(NSApplication), sharedApplication];
+        let _: () = msg_send![app, activateIgnoringOtherApps: YES];
+        let _: () = msg_send![app, orderFrontStandardAboutPanel: nil];
+    }
+}
+
 // Records the click count of every left mousedown before it is
 // dispatched. WebKit's own counter (e.detail) resets once the native
 // drag session started by a press on a drag region swallows the

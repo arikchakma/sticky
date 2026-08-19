@@ -28,6 +28,8 @@ const MAX_MENU_TITLE_LEN: usize = 40;
 /// The fixed menu items' ids.
 const NEW_NOTE: &str = "tray_new_note";
 const TOGGLE_NOTES: &str = "tray_toggle_notes";
+const ABOUT: &str = "tray_about";
+const CHECK_UPDATES: &str = "tray_check_updates";
 const QUIT: &str = "tray_quit";
 
 /// Id prefix of the recent-note items; the note id follows.
@@ -98,6 +100,9 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     menu.append(&PredefinedMenuItem::separator(app)?)?;
     menu.append(&item(TOGGLE_NOTES, "Show/Hide All Notes")?)?;
     menu.append(&PredefinedMenuItem::separator(app)?)?;
+    menu.append(&item(ABOUT, "About Sticky")?)?;
+    menu.append(&item(CHECK_UPDATES, "Check for Updates…")?)?;
+    menu.append(&PredefinedMenuItem::separator(app)?)?;
     menu.append(&item(QUIT, "Quit Sticky")?)?;
 
     Ok(menu)
@@ -118,6 +123,8 @@ fn handle_selection(app: &AppHandle, id: &str) {
     match id {
         NEW_NOTE => new_note(app),
         TOGGLE_NOTES => toggle_notes(app),
+        ABOUT => show_about(app),
+        CHECK_UPDATES => crate::update::check_now(app),
         QUIT => quit(app),
         _ => {
             if let Some(note_id) = id.strip_prefix(NOTE_PREFIX) {
@@ -180,6 +187,17 @@ fn toggle_notes(app: &AppHandle) {
             let _ = w.set_focus();
         }
     }
+}
+
+/// Show the native "About Sticky" panel.
+fn show_about(app: &AppHandle) {
+    #[cfg(target_os = "macos")]
+    {
+        let _ = app.run_on_main_thread(crate::mac_window::show_about_panel);
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    let _ = app;
 }
 
 /// Quit the app. Saves window state like the Cmd+Q path, and the
